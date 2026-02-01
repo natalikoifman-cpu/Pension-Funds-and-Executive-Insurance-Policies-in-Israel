@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>השוואת קרנות פנסיה וביטוחי מנהלים</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>השוואת קרנות פנסיה וביטוחי מנהלים</h1>
+            <p class="subtitle">השווה בין קרנות פנסיה מבחינת עלות, ביצועים וסיכון</p>
+        </header>
+
+        <div class="search-section">
+            <h2>חיפוש קרנות</h2>
+            <div class="search-controls">
+                <input type="text" id="searchInput" placeholder="חפש לפי שם קרן...">
+                <button id="searchBtn" onclick="searchFunds()">חפש</button>
+                <button id="loadBtn" onclick="loadAllFunds()">טען את כל הקרנות</button>
+            </div>
+            
+            <div class="filter-section">
+                <h3>סינון לפי:</h3>
+                <div class="filters">
+                    <select id="typeFilter">
+                        <option value="">כל הסוגים</option>
+                        <option value="פנסיה">קרן פנסיה</option>
+                        <option value="השתלמות">קרן השתלמות</option>
+                        <option value="ביטוח">ביטוח מנהלים</option>
+                    </select>
+                    
+                    <select id="sortBy">
+                        <option value="name">מיין לפי שם</option>
+                        <option value="return">מיין לפי תשואה</option>
+                        <option value="fee">מיין לפי דמי ניהול</option>
+                        <option value="risk">מיין לפי סיכון</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="comparison-section">
+            <h2>השוואה בין קרנות</h2>
+            <div id="comparisonArea">
+                <p class="info-text">בחר עד 3 קרנות להשוואה</p>
+            </div>
+        </div>
+
+        <div class="results-section">
+            <h2>תוצאות חיפוש</h2>
+            <div id="loadingIndicator" class="loading" style="display: none;">
+                <p>טוען נתונים...</p>
+            </div>
+            <div id="errorMessage" class="error" style="display: none;"></div>
+            <div id="resultsTable"></div>
+        </div>
+
+        <div class="info-section">
+            <h2>מידע על הנתונים</h2>
+            <p>הנתונים מגיעים ממאגר המידע הממשלתי של משרד האוצר - רשות שוק ההון, ביטוח וחסכון.</p>
+            <p>הנתונים כוללים מידע על דמי ניהול, תשואות היסטוריות, ורמת סיכון.</p>
+            <div id="dataInfo"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
