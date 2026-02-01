@@ -32,10 +32,20 @@
 
 ### הפעלת האפליקציה
 
-1. פתח את הקובץ `index.html` בדפדפן
-2. או השתמש בשרת HTTP פשוט:
+#### דרך 1: שימוש ב-npm (מומלץ)
 
 ```bash
+cd frontend
+npm install
+npm start
+```
+
+ואז פתח בדפדפן: `http://localhost:3000`
+
+#### דרך 2: שרת HTTP פשוט
+
+```bash
+cd frontend
 python3 -m http.server 8080
 ```
 
@@ -53,10 +63,15 @@ python3 -m http.server 8080
 
 ```
 .
-├── index.html      # עמוד ה-HTML הראשי
-├── styles.css      # עיצוב CSS
-├── app.js          # לוגיקת JavaScript
-└── README.md       # תיעוד
+├── frontend/           # אפליקציית הפרונטאנד
+│   ├── index.html      # עמוד ה-HTML הראשי
+│   ├── styles.css      # עיצוב CSS
+│   ├── app.js          # לוגיקת JavaScript
+│   └── package.json    # תלויות npm
+├── README.md           # תיעוד
+├── FunctionApp/        # Azure Functions
+├── pension_fund_api.py # API לנתוני קרנות
+└── examples.py         # דוגמאות שימוש
 ```
 
 ## טכנולוגיות

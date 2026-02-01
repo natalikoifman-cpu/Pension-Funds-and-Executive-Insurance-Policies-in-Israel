@@ -1,0 +1,21 @@
+{
+  "name": "pension-funds-frontend",
+  "version": "1.0.0",
+  "description": "השוואת קרנות פנסיה וביטוחי מנהלים - Frontend application",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx serve -l 3000",
+    "test": "echo \"No tests configured\" && exit 0"
+  },
+  "keywords": [
+    "pension",
+    "funds",
+    "israel",
+    "finance"
+  ],
+  "author": "קויפמן-לרנר",
+  "license": "MIT",
+  "devDependencies": {
+    "serve": "^14.2.4"
+  }
+}
