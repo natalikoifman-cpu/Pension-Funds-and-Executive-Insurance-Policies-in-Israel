@@ -55,9 +55,38 @@ python3 -m http.server 8080
 .
 ├── index.html      # עמוד ה-HTML הראשי
 ├── styles.css      # עיצוב CSS
+├── config.js       # הגדרות API
 ├── app.js          # לוגיקת JavaScript
+├── .env.example    # קובץ דוגמה להגדרות סביבה
+├── FunctionApp/    # Azure Functions Backend
 └── README.md       # תיעוד
 ```
+
+## הגדרת API
+
+האפליקציה תומכת בחיבור ל-Azure Functions backend. להגדרת כתובת ה-API:
+
+### אפשרות 1: עריכת config.js ישירות (מומלץ)
+פתח את קובץ `config.js` ועדכן את הערך של `API_URL`:
+```javascript
+API_URL: "https://your-actual-azure-function-app.azurewebsites.net/api"
+```
+
+### אפשרות 2: הגדרת משתנה גלובלי
+הגדר את המשתנה `window.REACT_APP_API_URL` לפני טעינת האפליקציה ב-`index.html`:
+```html
+<script>
+    window.REACT_APP_API_URL = "https://your-actual-azure-function-app.azurewebsites.net/api";
+</script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+```
+
+### קובץ .env.example
+קובץ `.env.example` משמש כתיעוד של משתני הסביבה הנדרשים לפריסה.
+אם משתמשים בכלי בנייה (כגון webpack או Vite), ניתן להגדיר את `REACT_APP_API_URL` בקובץ `.env` והכלי יזריק את הערך לקוד.
+
+**הערה:** אם ה-API לא מוגדר או לא זמין, האפליקציה תשתמש בנתוני דוגמה.
 
 ## טכנולוגיות
 

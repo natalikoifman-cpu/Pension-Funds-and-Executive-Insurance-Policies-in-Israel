@@ -1,5 +1,6 @@
 // Pension Fund Data Displayer and Comparer
 // Data source: Israeli Government Open Data Portal
+// API URL configured via REACT_APP_API_URL environment variable
 
 let allFunds = [];
 let selectedFunds = [];
@@ -113,11 +114,29 @@ function init() {
 }
 
 // Load all funds
-function loadAllFunds() {
+async function loadAllFunds() {
     showLoading(true);
     hideError();
     
-    // Simulate API call delay
+    // Try to fetch from Azure Functions API if configured
+    if (window.AppConfig && window.AppConfig.API_URL && !window.AppConfig.API_URL.includes('your-azure-function-app')) {
+        try {
+            const apiUrl = window.getApiUrl(window.AppConfig.ENDPOINTS.SEARCH);
+            const response = await fetch(apiUrl);
+            if (response.ok) {
+                const result = await response.json();
+                allFunds = result.funds || result;
+                displayFunds(allFunds);
+                showLoading(false);
+                updateDataInfo(`נטענו ${allFunds.length} קרנות מהשרת`);
+                return;
+            }
+        } catch (error) {
+            console.warn('Failed to fetch from API, falling back to sample data:', error);
+        }
+    }
+    
+    // Fallback to sample data
     setTimeout(() => {
         allFunds = [...sampleFunds];
         displayFunds(allFunds);
@@ -127,7 +146,7 @@ function loadAllFunds() {
 }
 
 // Search funds
-function searchFunds() {
+async function searchFunds() {
     const searchTerm = document.getElementById('searchInput').value.trim();
     const typeFilter = document.getElementById('typeFilter').value;
     
@@ -139,6 +158,35 @@ function searchFunds() {
     showLoading(true);
     hideError();
     
+    // Try to fetch from Azure Functions API if configured
+    if (window.AppConfig && window.AppConfig.API_URL && !window.AppConfig.API_URL.includes('your-azure-function-app')) {
+        try {
+            const params = new URLSearchParams();
+            if (searchTerm) params.append('query', searchTerm);
+            if (typeFilter) params.append('fundType', typeFilter);
+            
+            const apiUrl = `${window.getApiUrl(window.AppConfig.ENDPOINTS.SEARCH)}?${params.toString()}`;
+            const response = await fetch(apiUrl);
+            if (response.ok) {
+                const result = await response.json();
+                const filtered = result.funds || result;
+                allFunds = filtered;
+                displayFunds(filtered);
+                showLoading(false);
+                
+                if (filtered.length === 0) {
+                    showError('לא נמצאו קרנות התואמות את הקריטריונים');
+                } else {
+                    updateDataInfo(`נמצאו ${filtered.length} קרנות`);
+                }
+                return;
+            }
+        } catch (error) {
+            console.warn('Failed to fetch from API, falling back to sample data:', error);
+        }
+    }
+    
+    // Fallback to sample data
     setTimeout(() => {
         let filtered = [...sampleFunds];
         
