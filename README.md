@@ -32,8 +32,17 @@
 
 ### הפעלת האפליקציה
 
-1. פתח את הקובץ `index.html` בדפדפן
-2. או השתמש בשרת HTTP פשוט:
+#### דרך 1: שימוש ב-npm (מומלץ)
+
+```bash
+cd frontend
+npm install
+npm start
+```
+
+ואז פתח בדפדפן: `http://localhost:3000`
+
+#### דרך 2: שרת HTTP פשוט (גרסה סטטית)
 
 ```bash
 python3 -m http.server 8080
@@ -53,13 +62,19 @@ python3 -m http.server 8080
 
 ```
 .
-├── index.html      # עמוד ה-HTML הראשי
-├── styles.css      # עיצוב CSS
-├── config.js       # הגדרות API
-├── app.js          # לוגיקת JavaScript
-├── .env.example    # קובץ דוגמה להגדרות סביבה
-├── FunctionApp/    # Azure Functions Backend
-└── README.md       # תיעוד
+├── frontend/           # אפליקציית הפרונטאנד (React)
+│   ├── package.json    # תלויות npm
+│   ├── public/         # קבצים סטטיים
+│   └── src/            # קוד מקור React
+├── index.html          # עמוד ה-HTML הראשי (גרסה סטטית)
+├── styles.css          # עיצוב CSS
+├── config.js           # הגדרות API
+├── app.js              # לוגיקת JavaScript
+├── .env.example        # קובץ דוגמה להגדרות סביבה
+├── FunctionApp/        # Azure Functions Backend
+├── pension_fund_api.py # API Python לנתוני קרנות
+├── examples.py         # דוגמאות שימוש
+└── README.md           # תיעוד
 ```
 
 ## הגדרת API
