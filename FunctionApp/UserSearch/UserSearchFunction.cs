@@ -24,7 +24,7 @@ public class UserSearchFunction
     public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequestData req)
     {
-        _logger.LogInformation("Search function processing request");
+        _logger.LogInformation("Search function processing request with camelCase JSON response");
 
         var query = req.Query["query"];
         var fundType = req.Query["fundType"];
