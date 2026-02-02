@@ -13,6 +13,11 @@
 
 ```bash
 cd FunctionApp
+
+# Copy the example settings file and configure your Azure OpenAI credentials
+cp local.settings.json.example local.settings.json
+# Edit local.settings.json and set your AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY
+
 dotnet restore
 func start
 ```
@@ -82,7 +87,19 @@ az staticwebapp create \
    **For Frontend (Static Web App):**
    - `AZURE_STATIC_WEB_APPS_API_TOKEN`: Get from Azure Portal → Static Web App → Manage deployment token
 
-3. Add repository variable:
+3. Configure Azure OpenAI settings in the Function App:
+   ```bash
+   # Set Azure OpenAI configuration in Function App settings
+   az functionapp config appsettings set \
+     --name pension-funds-api \
+     --resource-group pension-funds-rg \
+     --settings \
+       AZURE_OPENAI_ENDPOINT=https://your-resource.cognitiveservices.azure.com \
+       AZURE_OPENAI_API_KEY=your-api-key \
+       AZURE_OPENAI_DEPLOYMENT=gpt-4o
+   ```
+
+4. Add repository variable:
    - Go to Settings → Secrets and variables → Actions → Variables
    - Add `API_URL`: `https://pension-funds-api.azurewebsites.net/api`
 

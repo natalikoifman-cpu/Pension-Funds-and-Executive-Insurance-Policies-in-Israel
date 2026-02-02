@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text.Json;
 using FunctionApp.Models;
+using FunctionApp.Services;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -10,10 +11,36 @@ namespace FunctionApp.Chat;
 public class ChatFunction
 {
     private readonly ILogger<ChatFunction> _logger;
+    private readonly IAzureOpenAIService _openAIService;
 
-    public ChatFunction(ILogger<ChatFunction> logger)
+    private const string SystemPrompt = @"אתה יועץ פנסיוני מומחה בישראל. תפקידך לעזור למשתמשים להבין ולהשוות בין קרנות פנסיה וביטוחי מנהלים.
+
+כללים:
+1. ענה תמיד בעברית אלא אם המשתמש פונה באנגלית
+2. היה מדויק ומקצועי אך ידידותי
+3. הסבר מושגים פיננסיים בצורה פשוטה
+4. אם אתה לא בטוח במשהו, ציין זאת
+5. המלץ תמיד להתייעץ עם יועץ פנסיוני מוסמך לפני קבלת החלטות
+
+נושאים שאתה מומחה בהם:
+- קרנות פנסיה (Pension Funds)
+- ביטוחי מנהלים (Executive Insurance)
+- קופות גמל (Savings Funds)
+- דמי ניהול והשוואת עלויות
+- תשואות ורמות סיכון
+- זכויות עובדים ומעסיקים
+
+נתוני קרנות לדוגמה שיש לך מידע עליהם:
+- מיטב דש גמל: תשואה 8.5%, דמי ניהול 0.5%, סיכון בינוני
+- הראל פנסיה: תשואה 7.8%, דמי ניהול 0.45%, סיכון נמוך
+- מנורה מבטחים פנסיה: תשואה 9.2%, דמי ניהול 0.55%, סיכון גבוה
+- כלל ביטוח מנהלים: תשואה 6.5%, דמי ניהול 0.6%, סיכון נמוך
+- פניקס ביטוח מנהלים: תשואה 7.2%, דמי ניהול 0.52%, סיכון בינוני";
+
+    public ChatFunction(ILogger<ChatFunction> logger, IAzureOpenAIService openAIService)
     {
         _logger = logger;
+        _openAIService = openAIService;
     }
 
     [Function("Chat")]
@@ -57,11 +84,21 @@ public class ChatFunction
     {
         var sessionId = request.SessionId ?? Guid.NewGuid().ToString();
         var intent = AnalyzeIntent(request.Message);
-        var responseMessage = GenerateResponse(request.Message, intent);
         var suggestedFunds = GetRelevantFunds(intent);
         var suggestedQuestions = GetSuggestedQuestions(intent);
 
-        return await Task.FromResult(new ChatResponse
+        string responseMessage;
+        try
+        {
+            responseMessage = await _openAIService.GetChatResponseAsync(request.Message, SystemPrompt);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get response from Azure OpenAI, falling back to rule-based response");
+            responseMessage = GenerateResponse(request.Message, intent);
+        }
+
+        return new ChatResponse
         {
             Message = responseMessage,
             SessionId = sessionId,
@@ -69,7 +106,7 @@ public class ChatFunction
             SuggestedFunds = suggestedFunds.Any() ? suggestedFunds : null,
             SuggestedQuestions = suggestedQuestions,
             Timestamp = DateTime.UtcNow
-        });
+        };
     }
 
     private ChatIntent AnalyzeIntent(string message)
