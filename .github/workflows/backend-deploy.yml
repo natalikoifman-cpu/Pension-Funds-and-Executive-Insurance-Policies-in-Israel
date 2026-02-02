@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_FUNCTIONAPP_NAME: 'pension-funds-api'
+  AZURE_FUNCTIONAPP_NAME: 'pension-funds-api-cyekachfb9efa6ej'
   AZURE_RESOURCE_GROUP: 'rg-natali.koifman-9117'
   AZURE_FUNCTIONAPP_PACKAGE_PATH: 'FunctionApp'
   DOTNET_VERSION: '8.0.x'
