@@ -12,6 +12,10 @@ public class ChatFunction
 {
     private readonly ILogger<ChatFunction> _logger;
     private readonly IAzureOpenAIService _openAIService;
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
 
     private const string SystemPrompt = @"אתה יועץ פנסיוני מומחה בישראל. תפקידך לעזור למשתמשים להבין ולהשוות בין קרנות פנסיה וביטוחי מנהלים.
 
@@ -76,7 +80,8 @@ public class ChatFunction
         var chatResponse = await ProcessChatAsync(chatRequest);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
-        await response.WriteAsJsonAsync(chatResponse);
+        response.Headers.Add("Content-Type", "application/json");
+        await response.WriteStringAsync(JsonSerializer.Serialize(chatResponse, JsonOptions));
         return response;
     }
 

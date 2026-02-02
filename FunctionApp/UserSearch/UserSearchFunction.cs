@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using FunctionApp.Models;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
@@ -9,6 +10,10 @@ namespace FunctionApp.UserSearch;
 public class UserSearchFunction
 {
     private readonly ILogger<UserSearchFunction> _logger;
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
 
     public UserSearchFunction(ILogger<UserSearchFunction> logger)
     {
@@ -43,7 +48,8 @@ public class UserSearchFunction
         var result = await SearchFundsAsync(searchRequest);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
-        await response.WriteAsJsonAsync(result);
+        response.Headers.Add("Content-Type", "application/json");
+        await response.WriteStringAsync(JsonSerializer.Serialize(result, JsonOptions));
         return response;
     }
 
