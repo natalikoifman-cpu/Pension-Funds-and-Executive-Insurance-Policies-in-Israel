@@ -45,6 +45,8 @@ jobs:
           output_location: "build" # Built app content directory - optional
           github_id_token: ${{ steps.idtoken.outputs.result }}
           ###### End of Repository/Build Configurations ######
+        env:
+          REACT_APP_API_URL: https://pension-funds-api-cyekachfb9efa6ej.canadacentral-01.azurewebsites.net/api
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
