@@ -43,39 +43,42 @@ The app will open at `http://localhost:3000`
 
 ## Deploy to Azure
 
-### Step 1: Create Azure Resources
+### Step 1: Create Azure Function App
 
 ```bash
 # Login to Azure
 az login
 
-# Create resource group
-az group create --name pension-funds-rg --location westeurope
-
-# Create storage account (required for Functions)
-az storage account create \
-  --name pensionfundsstorage \
-  --resource-group pension-funds-rg \
-  --location westeurope \
-  --sku Standard_LRS
-
-# Create Function App
+# Create Function App (using existing resource group and storage)
 az functionapp create \
   --name pension-funds-api \
-  --resource-group pension-funds-rg \
-  --consumption-plan-location westeurope \
+  --resource-group rg-natali.koifman-9117 \
+  --consumption-plan-location eastus2 \
   --runtime dotnet-isolated \
   --functions-version 4 \
-  --storage-account pensionfundsstorage
+  --storage-account 1qsc2efb
 
-# Create Static Web App
+# Create Static Web App for frontend
 az staticwebapp create \
   --name pension-funds-web \
-  --resource-group pension-funds-rg \
-  --location westeurope
+  --resource-group rg-natali.koifman-9117 \
+  --location eastus2
 ```
 
-### Step 2: Configure GitHub Secrets
+### Step 2: Configure Azure OpenAI Settings
+
+```bash
+# Set Azure AI Foundry configuration in Function App
+az functionapp config appsettings set \
+  --name pension-funds-api \
+  --resource-group rg-natali.koifman-9117 \
+  --settings \
+    AZURE_OPENAI_ENDPOINT="https://chain123456-resource.services.ai.azure.com/api/projects/chain123456" \
+    AZURE_OPENAI_API_KEY="your-api-key" \
+    AZURE_OPENAI_DEPLOYMENT="gpt-4o"
+```
+
+### Step 3: Configure GitHub Secrets
 
 1. Go to your GitHub repository → Settings → Secrets and variables → Actions
 
@@ -87,23 +90,11 @@ az staticwebapp create \
    **For Frontend (Static Web App):**
    - `AZURE_STATIC_WEB_APPS_API_TOKEN`: Get from Azure Portal → Static Web App → Manage deployment token
 
-3. Configure Azure OpenAI settings in the Function App:
-   ```bash
-   # Set Azure OpenAI configuration in Function App settings
-   az functionapp config appsettings set \
-     --name pension-funds-api \
-     --resource-group pension-funds-rg \
-     --settings \
-       AZURE_OPENAI_ENDPOINT=https://your-resource.cognitiveservices.azure.com \
-       AZURE_OPENAI_API_KEY=your-api-key \
-       AZURE_OPENAI_DEPLOYMENT=gpt-4o
-   ```
-
-4. Add repository variable:
+3. Add repository variable:
    - Go to Settings → Secrets and variables → Actions → Variables
    - Add `API_URL`: `https://pension-funds-api.azurewebsites.net/api`
 
-### Step 3: Deploy
+### Step 4: Deploy
 
 Push to `main` branch - GitHub Actions will automatically deploy:
 - Backend changes → Azure Functions
@@ -117,7 +108,7 @@ Push to `main` branch - GitHub Actions will automatically deploy:
 
 ```bash
 cd FunctionApp
-func azure functionapp publish pension-funds-api
+func azure functionapp publish pension-funds-api --resource-group rg-natali.koifman-9117
 ```
 
 ### Deploy Frontend
@@ -125,7 +116,7 @@ func azure functionapp publish pension-funds-api
 ```bash
 cd frontend
 npm run build
-az staticwebapp upload --app-name pension-funds-web --app-location build
+az staticwebapp upload --app-name pension-funds-web --resource-group rg-natali.koifman-9117 --app-location build
 ```
 
 ---
