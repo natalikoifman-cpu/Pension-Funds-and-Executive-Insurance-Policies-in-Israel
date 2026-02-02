@@ -30,6 +30,11 @@ bld/
 # Azure Functions
 local.settings.json
 
+# Environment files
+.env
+.env.local
+.env.*.local
+
 # NuGet
 *.nupkg
 *.snupkg
