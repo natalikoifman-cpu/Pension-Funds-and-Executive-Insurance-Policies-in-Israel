@@ -162,11 +162,14 @@ public class UserSearchFunction
             _ => "Low"
         };
 
+        // Map "Insurance" to "Executive" for frontend compatibility
+        var fundType = record.FundType?.ToLower() == "insurance" ? "Executive" : (record.FundType ?? "Pension");
+
         return new PensionFund
         {
             Id = record.FundId ?? "",
             Name = record.FundName ?? "",
-            FundType = record.FundType ?? "Pension",
+            FundType = fundType,
             ManagingCompany = record.ParentCompanyName ?? "",
             AnnualReturn = record.YearToDateYield ?? 0,
             ManagementFee = record.AvgAnnualManagementFee ?? 0,
