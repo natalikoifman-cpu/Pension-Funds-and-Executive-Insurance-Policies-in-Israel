@@ -74,8 +74,8 @@ public class UserSearchFunction
                 _ => "Pension"
             };
 
-            // Build query string
-            var fields = "FUND_ID,FUND_NAME,FUND_TYPE,PARENT_COMPANY_NAME,AVG_ANNUAL_MANAGEMENT_FEE,AVG_DEPOSIT_FEE,YEAR_TO_DATE_YIELD,STOCK_MARKET_EXPOSURE";
+            // Build query string (FUND_TYPE not needed - determined by URL path)
+            var fields = "FUND_ID,FUND_NAME,PARENT_COMPANY_NAME,AVG_ANNUAL_MANAGEMENT_FEE,AVG_DEPOSIT_FEE,YEAR_TO_DATE_YIELD,STOCK_MARKET_EXPOSURE";
             var offset = (pageNumber - 1) * pageSize;
 
             var queryParams = new List<string>
@@ -134,7 +134,9 @@ public class UserSearchFunction
                 return new SearchResult { Funds = new List<PensionFund>(), TotalCount = 0, PageNumber = pageNumber, PageSize = pageSize };
             }
 
-            var funds = apiResult.Result.Records.Select(MapToFund).ToList();
+            // Pass the fund type from URL since FUND_TYPE is not in the response
+            var mappedFundType = apiFundType == "Insurance" ? "Executive" : "Pension";
+            var funds = apiResult.Result.Records.Select(r => MapToFund(r, mappedFundType)).ToList();
             var totalCount = apiResult.Result.Total;
 
             return new SearchResult
@@ -152,7 +154,7 @@ public class UserSearchFunction
         }
     }
 
-    private static PensionFund MapToFund(ExternalFundRecord record)
+    private static PensionFund MapToFund(ExternalFundRecord record, string fundType)
     {
         // Determine risk level based on stock market exposure
         var riskLevel = record.StockMarketExposure switch
@@ -161,9 +163,6 @@ public class UserSearchFunction
             >= 30 => "Medium",
             _ => "Low"
         };
-
-        // Map "Insurance" to "Executive" for frontend compatibility
-        var fundType = record.FundType?.ToLower() == "insurance" ? "Executive" : (record.FundType ?? "Pension");
 
         return new PensionFund
         {
@@ -213,9 +212,6 @@ public class ExternalFundRecord
 
     [JsonPropertyName("FUND_NAME")]
     public string? FundName { get; set; }
-
-    [JsonPropertyName("FUND_TYPE")]
-    public string? FundType { get; set; }
 
     [JsonPropertyName("PARENT_COMPANY_NAME")]
     public string? ParentCompanyName { get; set; }
