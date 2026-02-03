@@ -1,5 +1,7 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using FunctionApp.Models;
 using FunctionApp.Services;
 using Microsoft.Azure.Functions.Worker;
@@ -12,9 +14,19 @@ public class ChatFunction
 {
     private readonly ILogger<ChatFunction> _logger;
     private readonly IAzureOpenAIService _openAIService;
+    private readonly HttpClient _httpClient;
+
+    private const string ExternalApiBaseUrl = "https://fundscomparisonapi.azurewebsites.net";
+    private const string ExternalApiPath = "/api/Fundsnet/898dd1cf-3a25-49fd-8fd4-6c287bb654d1/funds";
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
+
+    private static readonly JsonSerializerOptions ApiJsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
     };
 
     private const string SystemPrompt = @"אתה יועץ פנסיוני מומחה בישראל. תפקידך לעזור למשתמשים להבין ולהשוות בין קרנות פנסיה וביטוחי מנהלים.
@@ -34,17 +46,13 @@ public class ChatFunction
 - תשואות ורמות סיכון
 - זכויות עובדים ומעסיקים
 
-נתוני קרנות לדוגמה שיש לך מידע עליהם:
-- מיטב דש גמל: תשואה 8.5%, דמי ניהול 0.5%, סיכון בינוני
-- הראל פנסיה: תשואה 7.8%, דמי ניהול 0.45%, סיכון נמוך
-- מנורה מבטחים פנסיה: תשואה 9.2%, דמי ניהול 0.55%, סיכון גבוה
-- כלל ביטוח מנהלים: תשואה 6.5%, דמי ניהול 0.6%, סיכון נמוך
-- פניקס ביטוח מנהלים: תשואה 7.2%, דמי ניהול 0.52%, סיכון בינוני";
+יש לך גישה לנתונים עדכניים על מאות קרנות פנסיה וביטוחי מנהלים בישראל.";
 
-    public ChatFunction(ILogger<ChatFunction> logger, IAzureOpenAIService openAIService)
+    public ChatFunction(ILogger<ChatFunction> logger, IAzureOpenAIService openAIService, IHttpClientFactory httpClientFactory)
     {
         _logger = logger;
         _openAIService = openAIService;
+        _httpClient = httpClientFactory.CreateClient();
     }
 
     [Function("Chat")]
@@ -89,7 +97,7 @@ public class ChatFunction
     {
         var sessionId = request.SessionId ?? Guid.NewGuid().ToString();
         var intent = AnalyzeIntent(request.Message);
-        var suggestedFunds = GetRelevantFunds(intent);
+        var suggestedFunds = await GetRelevantFundsAsync(intent);
         var suggestedQuestions = GetSuggestedQuestions(intent);
 
         string responseMessage;
@@ -130,7 +138,7 @@ public class ChatFunction
             intent.Type = "recommendation";
         }
         else if (messageLower.Contains("fee") || messageLower.Contains("cost") ||
-                 messageLower.Contains("עמלה") || messageLower.Contains("עלות"))
+                 messageLower.Contains("עמלה") || messageLower.Contains("עלות") || messageLower.Contains("ניהול"))
         {
             intent.Type = "fee_inquiry";
         }
@@ -167,27 +175,92 @@ public class ChatFunction
         {
             "comparison" => "אשמח לעזור לך להשוות בין קרנות פנסיה או ביטוחי מנהלים. איזה קרנות תרצה להשוות? אתה יכול לציין שמות ספציפיים או לבקש השוואה לפי קריטריונים כמו תשואה, דמי ניהול או רמת סיכון.",
             "recommendation" => "כדי להמליץ לך על קרן מתאימה, אצטרך לדעת קצת יותר על הצרכים שלך. מה חשוב לך יותר - תשואה גבוהה, דמי ניהול נמוכים, או רמת סיכון נמוכה?",
-            "fee_inquiry" => "דמי הניהול משתנים בין הקרנות השונות. בדרך כלל נעים בין 0.25% ל-1.5%. האם תרצה לראות רשימה של קרנות עם דמי הניהול הנמוכים ביותר?",
+            "fee_inquiry" => "דמי הניהול משתנים בין הקרנות השונות. בדרך כלל נעים בין 0.1% ל-1.5%. האם תרצה לראות רשימה של קרנות עם דמי הניהול הנמוכים ביותר?",
             "performance_inquiry" => "התשואות של קרנות הפנסיה וביטוחי המנהלים משתנות לפי תקופה ורמת סיכון. האם תרצה לראות את הקרנות עם התשואות הגבוהות ביותר בשנה האחרונה?",
             "risk_inquiry" => "רמת הסיכון היא פרמטר חשוב בבחירת קרן. קרנות עם סיכון גבוה יותר עשויות להניב תשואות גבוהות יותר לאורך זמן, אך גם להפסיד יותר בתקופות קשות. מה רמת הסיכון המועדפת עליך - נמוכה, בינונית או גבוהה?",
-            "pension_general" => "קרנות פנסיה הן מכשיר חיסכון ארוך טווח לפרישה. יש לנו מידע על מגוון קרנות פנסיה. במה אוכל לעזור לך?",
-            "executive_general" => "ביטוח מנהלים הוא מוצר פנסיוני המשלב חיסכון עם כיסויים ביטוחיים. יש לנו מידע על מגוון ביטוחי מנהלים. במה אוכל לעזור לך?",
+            "pension_general" => "קרנות פנסיה הן מכשיר חיסכון ארוך טווח לפרישה. יש לנו מידע על מאות קרנות פנסיה. במה אוכל לעזור לך?",
+            "executive_general" => "ביטוח מנהלים הוא מוצר פנסיוני המשלב חיסכון עם כיסויים ביטוחיים. יש לנו מידע על מאות ביטוחי מנהלים. במה אוכל לעזור לך?",
             _ => "שלום! אני כאן לעזור לך למצוא את קרן הפנסיה או ביטוח המנהלים המתאים לך. אתה יכול לשאול אותי על השוואות בין קרנות, תשואות, דמי ניהול, או לבקש המלצות מותאמות אישית."
         };
     }
 
-    private List<PensionFund> GetRelevantFunds(ChatIntent intent)
+    private async Task<List<PensionFund>> GetRelevantFundsAsync(ChatIntent intent)
     {
-        var allFunds = GetSampleFunds();
-
-        return intent.Type switch
+        var fundType = intent.Parameters.ContainsKey("fundType") ? intent.Parameters["fundType"] : "Pension";
+        var sortField = intent.Type switch
         {
-            "fee_inquiry" => allFunds.OrderBy(f => f.ManagementFee).Take(3).ToList(),
-            "performance_inquiry" => allFunds.OrderByDescending(f => f.AnnualReturn).Take(3).ToList(),
-            "risk_inquiry" => allFunds.Where(f => f.RiskLevel == "Low").Take(3).ToList(),
-            "pension_general" => allFunds.Where(f => f.FundType == "Pension").Take(3).ToList(),
-            "executive_general" => allFunds.Where(f => f.FundType == "Executive").Take(3).ToList(),
-            _ => new List<PensionFund>()
+            "fee_inquiry" => "AVG_ANNUAL_MANAGEMENT_FEE",
+            "performance_inquiry" => "YEAR_TO_DATE_YIELD desc",
+            _ => "YEAR_TO_DATE_YIELD desc"
+        };
+
+        try
+        {
+            var funds = await FetchFundsFromApiAsync(fundType, sortField, 3);
+            return funds;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching funds from external API");
+            return new List<PensionFund>();
+        }
+    }
+
+    private async Task<List<PensionFund>> FetchFundsFromApiAsync(string fundType, string sort, int limit)
+    {
+        var apiKey = Environment.GetEnvironmentVariable("FUNDS_API_KEY") ?? "c01221ec-b769-47a7-883c-e6cfb01276ad";
+        var apiFundType = fundType.ToLower() switch
+        {
+            "pension" => "Pension",
+            "executive" or "insurance" => "Insurance",
+            _ => "Pension"
+        };
+
+        var fields = "FUND_ID,FUND_NAME,PARENT_COMPANY_NAME,AVG_ANNUAL_MANAGEMENT_FEE,AVG_DEPOSIT_FEE,YEAR_TO_DATE_YIELD,STOCK_MARKET_EXPOSURE";
+        var url = $"{ExternalApiBaseUrl}{ExternalApiPath}/{apiFundType}?fields={fields}&limit={limit}&sort={Uri.EscapeDataString(sort)}";
+
+        var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
+
+        var response = await _httpClient.SendAsync(request);
+        var content = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogError("External API error: {StatusCode} - {Content}", response.StatusCode, content);
+            return new List<PensionFund>();
+        }
+
+        var apiResult = JsonSerializer.Deserialize<ExternalApiResponse>(content, ApiJsonOptions);
+        if (apiResult?.Success != true || apiResult.Result?.Records == null)
+        {
+            return new List<PensionFund>();
+        }
+
+        var mappedFundType = apiFundType == "Insurance" ? "Executive" : "Pension";
+        return apiResult.Result.Records.Select(r => MapToFund(r, mappedFundType)).ToList();
+    }
+
+    private static PensionFund MapToFund(ExternalFundRecord record, string fundType)
+    {
+        var riskLevel = record.StockMarketExposure switch
+        {
+            >= 70 => "High",
+            >= 30 => "Medium",
+            _ => "Low"
+        };
+
+        return new PensionFund
+        {
+            Id = record.FundId ?? "",
+            Name = record.FundName ?? "",
+            FundType = fundType,
+            ManagingCompany = record.ParentCompanyName ?? "",
+            AnnualReturn = record.YearToDateYield ?? 0,
+            ManagementFee = record.AvgAnnualManagementFee ?? 0,
+            DepositFee = record.AvgDepositFee ?? 0,
+            RiskLevel = riskLevel,
+            LastUpdated = DateTime.UtcNow
         };
     }
 
@@ -197,7 +270,7 @@ public class ChatFunction
         {
             "comparison" => new List<string>
             {
-                "השווה בין מיטב דש לבין הראל פנסיה",
+                "השווה בין קרנות הפנסיה המובילות",
                 "איזו קרן עדיפה מבחינת תשואה?",
                 "איזו קרן עדיפה מבחינת דמי ניהול?"
             },
@@ -222,71 +295,42 @@ public class ChatFunction
             }
         };
     }
+}
 
-    private List<PensionFund> GetSampleFunds()
-    {
-        return new List<PensionFund>
-        {
-            new()
-            {
-                Id = "1",
-                Name = "מיטב דש גמל",
-                FundType = "Pension",
-                ManagingCompany = "מיטב דש",
-                AnnualReturn = 8.5m,
-                ManagementFee = 0.5m,
-                DepositFee = 0.25m,
-                RiskLevel = "Medium",
-                LastUpdated = DateTime.UtcNow
-            },
-            new()
-            {
-                Id = "2",
-                Name = "הראל פנסיה",
-                FundType = "Pension",
-                ManagingCompany = "הראל",
-                AnnualReturn = 7.8m,
-                ManagementFee = 0.45m,
-                DepositFee = 0.2m,
-                RiskLevel = "Low",
-                LastUpdated = DateTime.UtcNow
-            },
-            new()
-            {
-                Id = "3",
-                Name = "מנורה מבטחים פנסיה",
-                FundType = "Pension",
-                ManagingCompany = "מנורה מבטחים",
-                AnnualReturn = 9.2m,
-                ManagementFee = 0.55m,
-                DepositFee = 0.3m,
-                RiskLevel = "High",
-                LastUpdated = DateTime.UtcNow
-            },
-            new()
-            {
-                Id = "4",
-                Name = "כלל ביטוח מנהלים",
-                FundType = "Executive",
-                ManagingCompany = "כלל ביטוח",
-                AnnualReturn = 6.5m,
-                ManagementFee = 0.6m,
-                DepositFee = 0.35m,
-                RiskLevel = "Low",
-                LastUpdated = DateTime.UtcNow
-            },
-            new()
-            {
-                Id = "5",
-                Name = "פניקס ביטוח מנהלים",
-                FundType = "Executive",
-                ManagingCompany = "הפניקס",
-                AnnualReturn = 7.2m,
-                ManagementFee = 0.52m,
-                DepositFee = 0.28m,
-                RiskLevel = "Medium",
-                LastUpdated = DateTime.UtcNow
-            }
-        };
-    }
+// Models for external API response
+public class ExternalApiResponse
+{
+    public bool Success { get; set; }
+    public ExternalApiResult? Result { get; set; }
+}
+
+public class ExternalApiResult
+{
+    public int Total { get; set; }
+    public int Limit { get; set; }
+    public List<ExternalFundRecord>? Records { get; set; }
+}
+
+public class ExternalFundRecord
+{
+    [JsonPropertyName("FUND_ID")]
+    public string? FundId { get; set; }
+
+    [JsonPropertyName("FUND_NAME")]
+    public string? FundName { get; set; }
+
+    [JsonPropertyName("PARENT_COMPANY_NAME")]
+    public string? ParentCompanyName { get; set; }
+
+    [JsonPropertyName("AVG_ANNUAL_MANAGEMENT_FEE")]
+    public decimal? AvgAnnualManagementFee { get; set; }
+
+    [JsonPropertyName("AVG_DEPOSIT_FEE")]
+    public decimal? AvgDepositFee { get; set; }
+
+    [JsonPropertyName("YEAR_TO_DATE_YIELD")]
+    public decimal? YearToDateYield { get; set; }
+
+    [JsonPropertyName("STOCK_MARKET_EXPOSURE")]
+    public decimal? StockMarketExposure { get; set; }
 }
