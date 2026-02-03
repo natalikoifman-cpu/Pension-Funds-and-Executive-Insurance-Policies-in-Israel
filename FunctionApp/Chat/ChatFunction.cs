@@ -187,11 +187,13 @@ public class ChatFunction
     private async Task<List<PensionFund>> GetRelevantFundsAsync(ChatIntent intent)
     {
         var fundType = intent.Parameters.ContainsKey("fundType") ? intent.Parameters["fundType"] : "Pension";
+        // Add "nulls last" to avoid funds with null values appearing first
         var sortField = intent.Type switch
         {
-            "fee_inquiry" => "AVG_ANNUAL_MANAGEMENT_FEE",
-            "performance_inquiry" => "YEAR_TO_DATE_YIELD desc",
-            _ => "YEAR_TO_DATE_YIELD desc"
+            "fee_inquiry" => "AVG_ANNUAL_MANAGEMENT_FEE nulls last",
+            "performance_inquiry" => "YEAR_TO_DATE_YIELD desc nulls last",
+            "recommendation" => "YEAR_TO_DATE_YIELD desc nulls last",
+            _ => "YEAR_TO_DATE_YIELD desc nulls last"
         };
 
         try
