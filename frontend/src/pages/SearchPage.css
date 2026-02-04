@@ -1,5 +1,5 @@
 .search-page {
-  max-width: 1000px;
+  max-width: 1200px;
   margin: 0 auto;
 }
 
@@ -8,15 +8,16 @@
   margin-bottom: 32px;
 }
 
-.search-header h2 {
-  font-size: 28px;
+.search-header h1 {
+  font-size: 32px;
   color: #1976d2;
   margin-bottom: 8px;
+  font-weight: 700;
 }
 
 .search-header p {
   color: #666;
-  font-size: 16px;
+  font-size: 18px;
 }
 
 /* Search Form */
@@ -40,11 +41,95 @@
   flex-direction: column;
 }
 
+.form-group label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.form-group input,
+.form-group select {
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #1976d2;
+  box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.1);
+}
+
 .form-actions {
   display: flex;
   gap: 12px;
   justify-content: center;
   padding-top: 8px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #1976d2, #1565c0);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #1565c0, #0d47a1);
+  transform: translateY(-1px);
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #f5f5f5;
+  color: #666;
+  border: 1px solid #ddd;
+}
+
+.btn-secondary:hover {
+  background: #eee;
+}
+
+.btn-compare {
+  background: linear-gradient(135deg, #2e7d32, #1b5e20);
+  color: white;
+}
+
+.btn-compare:hover {
+  background: linear-gradient(135deg, #1b5e20, #1a4d1a);
+}
+
+.btn-page {
+  background: white;
+  color: #1976d2;
+  border: 1px solid #1976d2;
+  padding: 8px 20px;
+}
+
+.btn-page:hover:not(:disabled) {
+  background: #e3f2fd;
+}
+
+.btn-page:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Error Message */
@@ -75,33 +160,43 @@
 }
 
 .results-header h3 {
-  font-size: 20px;
+  font-size: 22px;
   color: #333;
+  margin: 0;
 }
 
 .results-count {
-  color: #666;
-  font-size: 14px;
+  color: #1976d2;
+  font-size: 16px;
+  font-weight: 600;
 }
 
 /* Fund Cards Grid */
 .results-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
   gap: 20px;
 }
 
 .fund-card {
   background: #fafafa;
-  border: 1px solid #e0e0e0;
+  border: 2px solid #e0e0e0;
   border-radius: 12px;
   padding: 20px;
   transition: all 0.2s ease;
+  cursor: pointer;
+  position: relative;
 }
 
 .fund-card:hover {
   border-color: #1976d2;
   box-shadow: 0 4px 16px rgba(25, 118, 210, 0.15);
+  transform: translateY(-2px);
+}
+
+.fund-card.selected {
+  border-color: #2e7d32;
+  background: #e8f5e9;
 }
 
 .fund-header {
@@ -109,19 +204,22 @@
   justify-content: space-between;
   align-items: flex-start;
   margin-bottom: 8px;
+  gap: 12px;
 }
 
 .fund-header h4 {
-  font-size: 18px;
+  font-size: 17px;
   color: #333;
   margin: 0;
+  line-height: 1.3;
 }
 
 .fund-type {
-  font-size: 12px;
+  font-size: 11px;
   padding: 4px 10px;
   border-radius: 20px;
-  font-weight: 500;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .fund-type.pension {
@@ -137,34 +235,49 @@
 .fund-company {
   color: #666;
   font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.fund-classification {
+  color: #888;
+  font-size: 13px;
   margin-bottom: 16px;
+  font-style: italic;
 }
 
 .fund-stats {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
 }
 
 .stat {
   display: flex;
   flex-direction: column;
+  text-align: center;
+  padding: 8px;
+  background: white;
+  border-radius: 8px;
 }
 
 .stat-label {
-  font-size: 12px;
+  font-size: 11px;
   color: #888;
   margin-bottom: 4px;
 }
 
 .stat-value {
-  font-size: 16px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 700;
   color: #333;
 }
 
 .stat-value.positive {
   color: #2e7d32;
+}
+
+.stat-value.negative {
+  color: #c62828;
 }
 
 .stat-value.risk-low {
@@ -179,17 +292,200 @@
   color: #c62828;
 }
 
+.selected-indicator {
+  position: absolute;
+  bottom: 12px;
+  left: 12px;
+  background: #2e7d32;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* Pagination */
+.pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid #eee;
+}
+
+.page-info {
+  color: #666;
+  font-size: 14px;
+}
+
 /* No Results */
 .no-results {
   text-align: center;
-  padding: 40px;
+  padding: 60px 20px;
   color: #666;
 }
 
+.no-results p {
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+
+.no-results-hint {
+  font-size: 14px !important;
+  color: #999 !important;
+}
+
+/* Comparison Modal */
+.comparison-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.comparison-modal {
+  background: white;
+  border-radius: 16px;
+  max-width: 900px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.comparison-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #eee;
+  background: #f5f5f5;
+}
+
+.comparison-header h2 {
+  margin: 0;
+  font-size: 22px;
+  color: #333;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  font-size: 28px;
+  cursor: pointer;
+  color: #666;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-btn:hover {
+  background: #eee;
+  color: #333;
+}
+
+.comparison-table-container {
+  overflow-x: auto;
+  padding: 24px;
+  flex: 1;
+}
+
+.comparison-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.comparison-table th,
+.comparison-table td {
+  padding: 14px 16px;
+  text-align: center;
+  border-bottom: 1px solid #eee;
+}
+
+.comparison-table th {
+  background: #1976d2;
+  color: white;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.comparison-table th:first-child {
+  text-align: right;
+  background: #1565c0;
+}
+
+.comparison-table td:first-child {
+  text-align: right;
+  font-weight: 600;
+  background: #fafafa;
+  color: #555;
+}
+
+.comparison-table tr:hover td {
+  background: #f8f8f8;
+}
+
+.comparison-table tr:hover td:first-child {
+  background: #f0f0f0;
+}
+
+.comparison-table .best-value {
+  background: #e8f5e9 !important;
+  color: #2e7d32;
+  font-weight: 700;
+}
+
+.comparison-table .risk-low {
+  color: #2e7d32;
+}
+
+.comparison-table .risk-medium {
+  color: #f57c00;
+}
+
+.comparison-table .risk-high {
+  color: #c62828;
+}
+
+.comparison-footer {
+  padding: 16px 24px;
+  background: #f5f5f5;
+  border-top: 1px solid #eee;
+}
+
+.comparison-note {
+  margin: 0;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+}
+
 /* Responsive */
-@media (max-width: 600px) {
+@media (max-width: 768px) {
+  .search-header h1 {
+    font-size: 24px;
+  }
+
   .search-form {
     padding: 16px;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
   }
 
   .form-actions {
@@ -204,5 +500,27 @@
     flex-direction: column;
     gap: 8px;
     text-align: center;
+  }
+
+  .results-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .fund-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .comparison-modal {
+    border-radius: 12px;
+    margin: 10px;
+  }
+
+  .comparison-table {
+    font-size: 12px;
+  }
+
+  .comparison-table th,
+  .comparison-table td {
+    padding: 10px 8px;
   }
 }
