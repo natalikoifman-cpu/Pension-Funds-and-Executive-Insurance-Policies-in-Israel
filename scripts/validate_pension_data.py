@@ -5,8 +5,12 @@ Ground Truth vs. System Result Data Validation Script
 Compares pension fund data from a Hebrew PDF report (Ground Truth) against
 raw data from XML files (System Result) to identify discrepancies.
 
+Categories:
+- Pension Funds (PensiaNet.xml): מקיפה (Comprehensive), כללית (General)
+- Executive Insurance (hevrot.xml): By issuance year (2004+, 1992-2003, 1990-1991)
+
 Usage:
-    python validate_pension_data.py [--pdf PATH] [--xml1 PATH] [--xml2 PATH] [--output PATH]
+    python validate_pension_data.py [--pdf PATH] [--xml-pension PATH] [--xml-insurance PATH]
 
 Requirements:
     pip install pdfplumber pandas beautifulsoup4 lxml thefuzz python-Levenshtein
@@ -16,7 +20,7 @@ import argparse
 import re
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Dict
 import warnings
 
 # Suppress warnings for cleaner output
@@ -66,22 +70,61 @@ except (ImportError, Exception):
 FUZZY_MATCH_THRESHOLD = 85  # Minimum similarity score for name matching
 VALUE_TOLERANCE = 0.05  # Tolerance for numeric comparison (handles rounding)
 
-# XML field mappings
-XML_FIELDS = {
-    'name': ['SHEM_GUF', 'SHM_KRN', 'FUND_NAME', 'NAME'],
-    'yearly_yield': ['TSUA_SHNATIT', 'YEAR_TO_DATE_YIELD', 'TSUA_MEMUZAAT_SHNATIT', 'ANNUAL_RETURN'],
-    'yield_3_years': ['TSUA_SHNATIT_MEMUZAAT_3_SHANIM', 'YIELD_TRAILING_3_YRS', 'AVG_ANNUAL_YIELD_3_YRS'],
-    'yield_5_years': ['TSUA_SHNATIT_MEMUZAAT_5_SHANIM', 'YIELD_TRAILING_5_YRS', 'AVG_ANNUAL_YIELD_5_YRS'],
-    'management_fee': ['SHIUR_D_NIHUL_NECHASIM', 'AVG_ANNUAL_MANAGEMENT_FEE', 'MANAGEMENT_FEE', 'D_NIHUL'],
+# Category definitions
+PENSION_CATEGORIES = {
+    'comprehensive': {
+        'hebrew': 'קרן פנסיה מקיפה',
+        'keywords': ['מקיפה'],
+        'xml_tag': 'SUG_KRN'
+    },
+    'general': {
+        'hebrew': 'קרן פנסיה כללית',
+        'keywords': ['כללית'],
+        'xml_tag': 'SUG_KRN'
+    }
 }
 
-# Hebrew column name patterns for PDF extraction
+INSURANCE_CATEGORIES = {
+    '2004_onwards': {
+        'hebrew': 'משנת 2004 ואילך',
+        'patterns': [r'2004', r'מ[-\s]*2004'],
+        'years': (2004, 9999)
+    },
+    '1992_2003': {
+        'hebrew': 'משנת 1992 - 2003',
+        'patterns': [r'1992.*2003', r'1992[-\s]+2003'],
+        'years': (1992, 2003)
+    },
+    '1990_1991': {
+        'hebrew': 'משנת 1990 - 1991',
+        'patterns': [r'1990.*1991', r'1990[-\s]+1991'],
+        'years': (1990, 1991)
+    }
+}
+
+# XML field mappings for different sources
+PENSION_XML_FIELDS = {
+    'name': ['SHM_KRN', 'SHEM_GUF', 'FUND_NAME'],
+    'category_tag': ['SUG_KRN', 'SIVUG'],
+    'yield_12m': ['TSUA_MITZ_LE_TKUFA', 'TSUA_NOMINALIT_BRUTO_12_HODASHIM', 'YEAR_TO_DATE_YIELD'],
+    'yield_3y': ['TSUA_SHNATIT_MEMUZAAT_3_SHANIM', 'AVG_ANNUAL_YIELD_3_YRS'],
+    'yield_5y': ['TSUA_SHNATIT_MEMUZAAT_5_SHANIM', 'AVG_ANNUAL_YIELD_5_YRS'],
+}
+
+INSURANCE_XML_FIELDS = {
+    'name': ['SHEM_GUF', 'SHM_KRN', 'FUND_NAME'],
+    'issuance_period': ['TKUFAT_HAKAMA', 'TKUFA'],
+    'yield_12m': ['TSUA_NOMINALIT_BRUTO_12_HODASHIM', 'TSUA_MITZ_LE_TKUFA', 'YEAR_TO_DATE_YIELD'],
+    'yield_3y': ['TSUA_SHNATIT_MEMUZAAT_3_SHANIM', 'AVG_ANNUAL_YIELD_3_YRS'],
+    'yield_5y': ['TSUA_SHNATIT_MEMUZAAT_5_SHANIM', 'AVG_ANNUAL_YIELD_5_YRS'],
+}
+
+# PDF column patterns (Hebrew)
 PDF_COLUMN_PATTERNS = {
-    'name': [r'שם\s*קרן', r'שם\s*הקרן', r'קרן', r'מוצר'],
-    'yearly_yield': [r'תשואה\s*שנתית', r'תשואה\s*שנה', r'שנתית'],
-    'yield_3_years': [r'תשואה\s*3\s*שנים', r'3\s*שנים', r'תשואה.*3'],
-    'yield_5_years': [r'תשואה\s*5\s*שנים', r'5\s*שנים', r'תשואה.*5'],
-    'management_fee': [r'דמי\s*ניהול', r'ניהול', r'עמלה'],
+    'name': [r'שם\s*קרן', r'שם\s*הקרן', r'שם\s*המוצר', r'קרן', r'מוצר'],
+    'yield_12m': [r'תשואה\s*12', r'תשואה\s*שנתית', r'12\s*חודשים', r'שנה\s*אחרונה'],
+    'yield_3y': [r'תשואה\s*3', r'3\s*שנים', r'ממוצע\s*3'],
+    'yield_5y': [r'תשואה\s*5', r'5\s*שנים', r'ממוצע\s*5'],
 }
 
 
@@ -107,9 +150,6 @@ def reverse_hebrew_word(word: str) -> str:
 def fix_hebrew_text(text: str) -> str:
     """
     Fix Hebrew text that may have been extracted in reverse order.
-
-    PDF extractors often extract RTL text backwards. This function detects
-    and corrects such issues by checking if reversing improves readability.
     """
     if not text or not is_hebrew(text):
         return text
@@ -118,10 +158,10 @@ def fix_hebrew_text(text: str) -> str:
     known_words = [
         'מנורה', 'מבטחים', 'פנסיה', 'הראל', 'מיטב', 'אלטשולר', 'שחם',
         'כלל', 'הפניקס', 'מגדל', 'איילון', 'ביטוח', 'גמל', 'קרן',
-        'מניות', 'אג"ח', 'כללי', 'משולב', 'סחיר', 'חיסכון'
+        'מניות', 'אג"ח', 'כללי', 'משולב', 'סחיר', 'חיסכון',
+        'מקיפה', 'כללית', 'משנת', 'ואילך'
     ]
 
-    # Check if text contains known words
     text_lower = text.strip()
     reversed_text = text_lower[::-1]
 
@@ -129,7 +169,6 @@ def fix_hebrew_text(text: str) -> str:
     original_matches = sum(1 for word in known_words if word in text_lower)
     reversed_matches = sum(1 for word in known_words if word in reversed_text)
 
-    # If reversed has more matches, text was extracted backwards
     if reversed_matches > original_matches:
         return reversed_text
 
@@ -141,13 +180,8 @@ def clean_hebrew_string(text: str) -> str:
     if not text:
         return ""
 
-    # Fix potential RTL issues
     text = fix_hebrew_text(str(text))
-
-    # Remove extra whitespace
     text = re.sub(r'\s+', ' ', text).strip()
-
-    # Remove common suffixes/prefixes that vary
     text = re.sub(r'\s*(בע"מ|בעמ|ltd\.?|inc\.?)\s*', '', text, flags=re.IGNORECASE)
 
     return text
@@ -158,49 +192,28 @@ def clean_hebrew_string(text: str) -> str:
 # =============================================================================
 
 def parse_numeric_value(value) -> Optional[float]:
-    """
-    Parse numeric value from various formats.
-
-    Handles:
-    - Percentage strings: "12.5%", "12.5 %"
-    - Decimal values: "0.125", "12.5"
-    - Hebrew formatted numbers
-    - None/empty values
-    """
+    """Parse numeric value from various formats."""
     if value is None or (isinstance(value, str) and not value.strip()):
         return None
 
     if isinstance(value, (int, float)):
         return float(value)
 
-    # Convert to string and clean
     text = str(value).strip()
-
-    # Remove percentage sign
     text = text.replace('%', '').strip()
-
-    # Remove Hebrew characters if mixed with numbers
     text = re.sub(r'[^\d.\-,]', '', text)
 
-    # Handle comma as decimal separator
     if ',' in text and '.' not in text:
         text = text.replace(',', '.')
 
     try:
-        num = float(text)
-        # If value looks like it's in percentage form (e.g., 0.125 meaning 12.5%)
-        # We keep it as-is and normalize during comparison
-        return num
+        return float(text)
     except (ValueError, TypeError):
         return None
 
 
 def normalize_percentage(value: Optional[float]) -> Optional[float]:
-    """
-    Normalize percentage values for comparison.
-
-    Converts values to percentage form (e.g., 12.5 not 0.125).
-    """
+    """Normalize percentage values for comparison."""
     if value is None:
         return None
 
@@ -218,7 +231,6 @@ def values_match(val1: Optional[float], val2: Optional[float], tolerance: float 
     if val1 is None or val2 is None:
         return False
 
-    # Normalize both values
     norm1 = normalize_percentage(val1)
     norm2 = normalize_percentage(val2)
 
@@ -229,98 +241,267 @@ def values_match(val1: Optional[float], val2: Optional[float], tolerance: float 
 
 
 # =============================================================================
+# CATEGORY CLASSIFICATION
+# =============================================================================
+
+def classify_pension_fund(name: str, category_value: str = None) -> str:
+    """
+    Classify a pension fund as comprehensive (מקיפה) or general (כללית).
+
+    Args:
+        name: Fund name
+        category_value: Value from SUG_KRN tag if available
+
+    Returns:
+        Category key ('comprehensive', 'general', or 'unknown')
+    """
+    text_to_check = f"{name} {category_value or ''}".lower()
+
+    # Check for comprehensive (מקיפה)
+    if 'מקיפה' in text_to_check:
+        return 'comprehensive'
+
+    # Check for general (כללית)
+    if 'כללית' in text_to_check:
+        return 'general'
+
+    return 'unknown'
+
+
+def classify_insurance_period(tkufat_hakama: str) -> str:
+    """
+    Classify insurance fund by issuance period.
+
+    Args:
+        tkufat_hakama: Value from TKUFAT_HAKAMA tag
+
+    Returns:
+        Category key ('2004_onwards', '1992_2003', '1990_1991', or 'unknown')
+    """
+    if not tkufat_hakama:
+        return 'unknown'
+
+    text = str(tkufat_hakama)
+
+    # Check for 2004 onwards
+    if '2004' in text:
+        return '2004_onwards'
+
+    # Check for 1992-2003
+    if '1992' in text and '2003' in text:
+        return '1992_2003'
+
+    # Check for 1990-1991
+    if '1990' in text and '1991' in text:
+        return '1990_1991'
+
+    # Try to extract year and classify
+    year_match = re.search(r'(\d{4})', text)
+    if year_match:
+        year = int(year_match.group(1))
+        if year >= 2004:
+            return '2004_onwards'
+        elif 1992 <= year <= 2003:
+            return '1992_2003'
+        elif 1990 <= year <= 1991:
+            return '1990_1991'
+
+    return 'unknown'
+
+
+def get_category_hebrew(category_type: str, category_key: str) -> str:
+    """Get Hebrew label for a category."""
+    if category_type == 'pension':
+        return PENSION_CATEGORIES.get(category_key, {}).get('hebrew', category_key)
+    elif category_type == 'insurance':
+        return INSURANCE_CATEGORIES.get(category_key, {}).get('hebrew', category_key)
+    return category_key
+
+
+# =============================================================================
 # XML PARSING
 # =============================================================================
 
-def parse_xml_file(filepath: Path) -> pd.DataFrame:
+def extract_xml_field(record, field_names: List[str]) -> Optional[str]:
+    """Extract value from XML record trying multiple possible tag names."""
+    for field in field_names:
+        element = record.find(field)
+        if element and element.text:
+            return element.text.strip()
+    return None
+
+
+def parse_pension_xml(filepath: Path) -> pd.DataFrame:
     """
-    Parse a single XML file and extract pension fund data.
+    Parse PensiaNet.xml and extract pension fund data with categories.
 
     Args:
-        filepath: Path to the XML file
+        filepath: Path to PensiaNet.xml
 
     Returns:
-        DataFrame with extracted fund data
+        DataFrame with columns: Fund_Name, Category, Category_Hebrew, Yield_12M, Yield_3Y, Yield_5Y
     """
-    print(f"  Parsing: {filepath.name}")
+    print(f"  Parsing pension funds: {filepath.name}")
+
+    if not filepath.exists():
+        print(f"    ⚠️  File not found: {filepath}")
+        return pd.DataFrame()
 
     with open(filepath, 'r', encoding='utf-8') as f:
         content = f.read()
 
     soup = BeautifulSoup(content, 'lxml-xml')
 
-    # Find all fund records (try common parent tags)
+    # Find all fund records
     records = soup.find_all(['FUND', 'KEREN', 'RECORD', 'ROW', 'ITEM'])
-
-    # If no structured records, try to find repeating patterns
     if not records:
-        # Look for tags that appear multiple times
+        # Try to find repeating elements
         all_tags = [tag.name for tag in soup.find_all()]
         tag_counts = pd.Series(all_tags).value_counts()
-        potential_records = tag_counts[tag_counts > 1].index.tolist()
-
-        for tag_name in potential_records:
+        for tag_name in tag_counts[tag_counts > 5].index:
             records = soup.find_all(tag_name)
-            if len(records) > 5:  # Likely fund records
+            if len(records) > 5:
                 break
 
     data = []
     for record in records:
-        row = {}
+        # Extract name
+        name = extract_xml_field(record, PENSION_XML_FIELDS['name'])
+        if not name:
+            continue
 
-        # Extract each field using the mapping
-        for field_name, possible_tags in XML_FIELDS.items():
-            for tag in possible_tags:
-                element = record.find(tag)
-                if element and element.text:
-                    if field_name == 'name':
-                        row[field_name] = clean_hebrew_string(element.text)
-                    else:
-                        row[field_name] = parse_numeric_value(element.text)
-                    break
+        name = clean_hebrew_string(name)
 
-        # Only add if we found at least a name
-        if row.get('name'):
-            data.append(row)
+        # Get category tag value
+        category_value = extract_xml_field(record, PENSION_XML_FIELDS['category_tag'])
+
+        # Classify the fund
+        category = classify_pension_fund(name, category_value)
+
+        # Skip unknown categories
+        if category == 'unknown':
+            continue
+
+        # Extract yields
+        yield_12m = parse_numeric_value(extract_xml_field(record, PENSION_XML_FIELDS['yield_12m']))
+        yield_3y = parse_numeric_value(extract_xml_field(record, PENSION_XML_FIELDS['yield_3y']))
+        yield_5y = parse_numeric_value(extract_xml_field(record, PENSION_XML_FIELDS['yield_5y']))
+
+        data.append({
+            'Fund_Name': name,
+            'Fund_Type': 'pension',
+            'Category': category,
+            'Category_Hebrew': get_category_hebrew('pension', category),
+            'Yield_12M': yield_12m,
+            'Yield_3Y': yield_3y,
+            'Yield_5Y': yield_5y,
+            'Source': filepath.name
+        })
 
     df = pd.DataFrame(data)
-    print(f"    Found {len(df)} records")
+
+    if not df.empty:
+        # Count by category
+        category_counts = df['Category_Hebrew'].value_counts()
+        for cat, count in category_counts.items():
+            print(f"    {cat}: {count} funds")
+
+    print(f"    ✓ Found {len(df)} pension funds")
     return df
 
 
-def load_xml_data(xml_paths: list) -> pd.DataFrame:
+def parse_insurance_xml(filepath: Path) -> pd.DataFrame:
     """
-    Load and combine data from multiple XML files.
+    Parse hevrot.xml and extract insurance fund data with categories.
 
     Args:
-        xml_paths: List of paths to XML files
+        filepath: Path to hevrot.xml
 
     Returns:
-        Combined DataFrame with all fund data
+        DataFrame with columns: Fund_Name, Category, Category_Hebrew, Yield_12M, Yield_3Y, Yield_5Y
     """
-    print("\n📄 Step 1: Parsing XML files...")
+    print(f"  Parsing insurance funds: {filepath.name}")
 
-    dfs = []
-    for path in xml_paths:
-        filepath = Path(path)
-        if filepath.exists():
-            df = parse_xml_file(filepath)
-            if not df.empty:
-                df['source_file'] = filepath.name
-                dfs.append(df)
-        else:
-            print(f"  ⚠️  File not found: {path}")
-
-    if not dfs:
-        print("  ❌ No XML data found!")
+    if not filepath.exists():
+        print(f"    ⚠️  File not found: {filepath}")
         return pd.DataFrame()
 
-    combined = pd.concat(dfs, ignore_index=True)
+    with open(filepath, 'r', encoding='utf-8') as f:
+        content = f.read()
 
-    # Remove duplicates based on name (keep first occurrence)
-    combined = combined.drop_duplicates(subset=['name'], keep='first')
+    soup = BeautifulSoup(content, 'lxml-xml')
 
-    print(f"  ✓ Total unique funds from XML: {len(combined)}")
+    # Find all fund records
+    records = soup.find_all(['FUND', 'HEVRA', 'RECORD', 'ROW', 'ITEM'])
+    if not records:
+        all_tags = [tag.name for tag in soup.find_all()]
+        tag_counts = pd.Series(all_tags).value_counts()
+        for tag_name in tag_counts[tag_counts > 5].index:
+            records = soup.find_all(tag_name)
+            if len(records) > 5:
+                break
+
+    data = []
+    for record in records:
+        # Extract name
+        name = extract_xml_field(record, INSURANCE_XML_FIELDS['name'])
+        if not name:
+            continue
+
+        name = clean_hebrew_string(name)
+
+        # Get issuance period
+        tkufat_hakama = extract_xml_field(record, INSURANCE_XML_FIELDS['issuance_period'])
+
+        # Classify by period
+        category = classify_insurance_period(tkufat_hakama)
+
+        # Skip unknown categories
+        if category == 'unknown':
+            continue
+
+        # Extract yields
+        yield_12m = parse_numeric_value(extract_xml_field(record, INSURANCE_XML_FIELDS['yield_12m']))
+        yield_3y = parse_numeric_value(extract_xml_field(record, INSURANCE_XML_FIELDS['yield_3y']))
+        yield_5y = parse_numeric_value(extract_xml_field(record, INSURANCE_XML_FIELDS['yield_5y']))
+
+        data.append({
+            'Fund_Name': name,
+            'Fund_Type': 'insurance',
+            'Category': category,
+            'Category_Hebrew': get_category_hebrew('insurance', category),
+            'Yield_12M': yield_12m,
+            'Yield_3Y': yield_3y,
+            'Yield_5Y': yield_5y,
+            'Source': filepath.name
+        })
+
+    df = pd.DataFrame(data)
+
+    if not df.empty:
+        category_counts = df['Category_Hebrew'].value_counts()
+        for cat, count in category_counts.items():
+            print(f"    {cat}: {count} funds")
+
+    print(f"    ✓ Found {len(df)} insurance funds")
+    return df
+
+
+def load_all_xml_data(pension_path: Path, insurance_path: Path) -> pd.DataFrame:
+    """Load and combine data from both XML files."""
+    print("\n📄 Step 1: Parsing XML files...")
+
+    pension_df = parse_pension_xml(pension_path)
+    insurance_df = parse_insurance_xml(insurance_path)
+
+    # Combine
+    combined = pd.concat([pension_df, insurance_df], ignore_index=True)
+
+    if combined.empty:
+        print("  ❌ No XML data found!")
+    else:
+        print(f"\n  ✓ Total funds loaded: {len(combined)}")
+
     return combined
 
 
@@ -332,24 +513,14 @@ def extract_table_from_page(page) -> list:
     """Extract tables from a PDF page."""
     tables = page.extract_tables()
     all_rows = []
-
     for table in tables:
         if table:
             all_rows.extend(table)
-
     return all_rows
 
 
 def identify_columns(header_row: list) -> dict:
-    """
-    Identify which columns contain which data based on header text.
-
-    Args:
-        header_row: List of header cell values
-
-    Returns:
-        Dictionary mapping field names to column indices
-    """
+    """Identify which columns contain which data based on header text."""
     column_map = {}
 
     for idx, cell in enumerate(header_row):
@@ -367,16 +538,34 @@ def identify_columns(header_row: list) -> dict:
     return column_map
 
 
-def parse_pdf_file(filepath: Path) -> pd.DataFrame:
+def detect_category_from_header(text: str) -> tuple:
     """
-    Parse a PDF file and extract pension fund data from tables.
-
-    Args:
-        filepath: Path to the PDF file
+    Detect category from PDF section header.
 
     Returns:
-        DataFrame with extracted fund data
+        Tuple of (fund_type, category) or (None, None)
     """
+    text = clean_hebrew_string(text)
+
+    # Check for pension categories
+    if 'מקיפה' in text or 'פנסיה מקיפה' in text:
+        return ('pension', 'comprehensive')
+    if 'כללית' in text or 'פנסיה כללית' in text:
+        return ('pension', 'general')
+
+    # Check for insurance categories
+    if '2004' in text:
+        return ('insurance', '2004_onwards')
+    if '1992' in text and '2003' in text:
+        return ('insurance', '1992_2003')
+    if '1990' in text and '1991' in text:
+        return ('insurance', '1990_1991')
+
+    return (None, None)
+
+
+def parse_pdf_file(filepath: Path) -> pd.DataFrame:
+    """Parse PDF and extract fund data with categories."""
     print("\n📑 Step 2: Parsing PDF file...")
     print(f"  File: {filepath.name}")
 
@@ -388,16 +577,10 @@ def parse_pdf_file(filepath: Path) -> pd.DataFrame:
         print("  ❌ No PDF library available. Cannot parse PDF.")
         return pd.DataFrame()
 
-    data = []
-    column_map = {}
-
-    # Use pdfplumber (preferred)
     if PDF_LIBRARY == 'pdfplumber':
         return parse_pdf_with_pdfplumber(filepath)
-    # Fallback to pypdf
     elif PDF_LIBRARY == 'pypdf':
         return parse_pdf_with_pypdf(filepath)
-    # Fallback to PyPDF2
     elif PDF_LIBRARY == 'pypdf2':
         return parse_pdf_with_pypdf2(filepath)
 
@@ -407,61 +590,58 @@ def parse_pdf_file(filepath: Path) -> pd.DataFrame:
 def parse_pdf_with_pdfplumber(filepath: Path) -> pd.DataFrame:
     """Parse PDF using pdfplumber (best for tables)."""
     data = []
+    current_category = (None, None)  # (fund_type, category)
     column_map = {}
 
     with pdfplumber.open(filepath) as pdf:
         print(f"  Pages: {len(pdf.pages)} (using pdfplumber)")
 
         for page_num, page in enumerate(pdf.pages, 1):
+            # First check for category headers in text
+            text = page.extract_text()
+            if text:
+                for line in text.split('\n'):
+                    detected = detect_category_from_header(line)
+                    if detected[0]:
+                        current_category = detected
+                        print(f"    Page {page_num}: Detected category - {get_category_hebrew(detected[0], detected[1])}")
+
             # Extract tables
             tables = extract_table_from_page(page)
 
             if not tables:
-                # Try extracting text if no tables found
-                text = page.extract_text()
-                if text:
-                    # Parse text-based layout
-                    lines = text.split('\n')
-                    for line in lines:
-                        # Try to identify data rows
-                        parts = line.split()
-                        if len(parts) >= 3:
-                            # Check if line contains Hebrew text and numbers
-                            has_hebrew = any(is_hebrew(p) for p in parts)
-                            has_numbers = any(re.match(r'^-?\d+\.?\d*%?$', p) for p in parts)
-                            if has_hebrew and has_numbers:
-                                # Attempt to parse this line
-                                row = parse_text_row(parts)
-                                if row:
-                                    data.append(row)
                 continue
 
             for table in tables:
                 if not table or len(table) < 2:
                     continue
 
-                # First row might be header
+                # Check first row for header or category
+                first_row_text = ' '.join(str(cell) for cell in table[0] if cell)
+                detected = detect_category_from_header(first_row_text)
+                if detected[0]:
+                    current_category = detected
+
+                # Try to identify columns
                 if not column_map:
                     column_map = identify_columns(table[0])
                     if column_map:
-                        print(f"    Found columns: {list(column_map.keys())}")
-                        table = table[1:]  # Skip header
+                        table = table[1:]
 
                 # Parse data rows
                 for row in table:
                     if not row or all(not cell for cell in row):
                         continue
 
-                    parsed_row = parse_table_row(row, column_map)
-                    if parsed_row and parsed_row.get('name'):
+                    parsed_row = parse_table_row_with_category(row, column_map, current_category)
+                    if parsed_row and parsed_row.get('Fund_Name'):
                         data.append(parsed_row)
 
     df = pd.DataFrame(data)
 
-    # Clean up the data
     if not df.empty:
-        df['name'] = df['name'].apply(clean_hebrew_string)
-        df = df.drop_duplicates(subset=['name'], keep='first')
+        df['Fund_Name'] = df['Fund_Name'].apply(clean_hebrew_string)
+        df = df.drop_duplicates(subset=['Fund_Name', 'Category'], keep='first')
 
     print(f"  ✓ Extracted {len(df)} fund records from PDF")
     return df
@@ -470,6 +650,7 @@ def parse_pdf_with_pdfplumber(filepath: Path) -> pd.DataFrame:
 def parse_pdf_with_pypdf(filepath: Path) -> pd.DataFrame:
     """Parse PDF using pypdf (text extraction only)."""
     data = []
+    current_category = (None, None)
 
     reader = pypdf.PdfReader(str(filepath))
     print(f"  Pages: {len(reader.pages)} (using pypdf)")
@@ -477,12 +658,28 @@ def parse_pdf_with_pypdf(filepath: Path) -> pd.DataFrame:
     for page_num, page in enumerate(reader.pages, 1):
         text = page.extract_text()
         if text:
-            data.extend(parse_text_content(text))
+            lines = text.split('\n')
+            for line in lines:
+                # Check for category header
+                detected = detect_category_from_header(line)
+                if detected[0]:
+                    current_category = detected
+                    continue
+
+                # Try to parse as data row
+                parts = line.split()
+                if len(parts) >= 3:
+                    has_hebrew = any(is_hebrew(p) for p in parts)
+                    has_numbers = any(re.match(r'^-?\d+\.?\d*%?$', p) for p in parts)
+                    if has_hebrew and has_numbers:
+                        row = parse_text_row_with_category(parts, current_category)
+                        if row:
+                            data.append(row)
 
     df = pd.DataFrame(data)
     if not df.empty:
-        df['name'] = df['name'].apply(clean_hebrew_string)
-        df = df.drop_duplicates(subset=['name'], keep='first')
+        df['Fund_Name'] = df['Fund_Name'].apply(clean_hebrew_string)
+        df = df.drop_duplicates(subset=['Fund_Name', 'Category'], keep='first')
 
     print(f"  ✓ Extracted {len(df)} fund records from PDF")
     return df
@@ -491,6 +688,7 @@ def parse_pdf_with_pypdf(filepath: Path) -> pd.DataFrame:
 def parse_pdf_with_pypdf2(filepath: Path) -> pd.DataFrame:
     """Parse PDF using PyPDF2 (text extraction only)."""
     data = []
+    current_category = (None, None)
 
     reader = PyPDF2.PdfReader(str(filepath))
     print(f"  Pages: {len(reader.pages)} (using PyPDF2)")
@@ -498,76 +696,82 @@ def parse_pdf_with_pypdf2(filepath: Path) -> pd.DataFrame:
     for page_num, page in enumerate(reader.pages, 1):
         text = page.extract_text()
         if text:
-            data.extend(parse_text_content(text))
+            lines = text.split('\n')
+            for line in lines:
+                detected = detect_category_from_header(line)
+                if detected[0]:
+                    current_category = detected
+                    continue
+
+                parts = line.split()
+                if len(parts) >= 3:
+                    has_hebrew = any(is_hebrew(p) for p in parts)
+                    has_numbers = any(re.match(r'^-?\d+\.?\d*%?$', p) for p in parts)
+                    if has_hebrew and has_numbers:
+                        row = parse_text_row_with_category(parts, current_category)
+                        if row:
+                            data.append(row)
 
     df = pd.DataFrame(data)
     if not df.empty:
-        df['name'] = df['name'].apply(clean_hebrew_string)
-        df = df.drop_duplicates(subset=['name'], keep='first')
+        df['Fund_Name'] = df['Fund_Name'].apply(clean_hebrew_string)
+        df = df.drop_duplicates(subset=['Fund_Name', 'Category'], keep='first')
 
     print(f"  ✓ Extracted {len(df)} fund records from PDF")
     return df
 
 
-def parse_text_content(text: str) -> list:
-    """Parse text content from PDF and extract fund data."""
-    data = []
-    lines = text.split('\n')
+def parse_table_row_with_category(row: list, column_map: dict, category: tuple) -> dict:
+    """Parse a table row including category information."""
+    parsed = {
+        'Fund_Type': category[0],
+        'Category': category[1],
+        'Category_Hebrew': get_category_hebrew(category[0], category[1]) if category[0] else 'Unknown'
+    }
 
-    for line in lines:
-        parts = line.split()
-        if len(parts) >= 3:
-            has_hebrew = any(is_hebrew(p) for p in parts)
-            has_numbers = any(re.match(r'^-?\d+\.?\d*%?$', p) for p in parts)
-            if has_hebrew and has_numbers:
-                row = parse_text_row(parts)
-                if row:
-                    data.append(row)
-
-    return data
-
-
-def parse_table_row(row: list, column_map: dict) -> dict:
-    """Parse a single table row using the column mapping."""
-    parsed = {}
-
-    for field_name, col_idx in column_map.items():
-        if col_idx < len(row) and row[col_idx]:
-            cell_value = row[col_idx]
-            if field_name == 'name':
-                parsed[field_name] = clean_hebrew_string(str(cell_value))
-            else:
-                parsed[field_name] = parse_numeric_value(cell_value)
-
-    # If no column map, try heuristic approach
-    if not column_map and row:
-        # Find Hebrew text (likely fund name)
+    if column_map:
+        for field_name, col_idx in column_map.items():
+            if col_idx < len(row) and row[col_idx]:
+                cell_value = row[col_idx]
+                if field_name == 'name':
+                    parsed['Fund_Name'] = clean_hebrew_string(str(cell_value))
+                elif field_name == 'yield_12m':
+                    parsed['Yield_12M'] = parse_numeric_value(cell_value)
+                elif field_name == 'yield_3y':
+                    parsed['Yield_3Y'] = parse_numeric_value(cell_value)
+                elif field_name == 'yield_5y':
+                    parsed['Yield_5Y'] = parse_numeric_value(cell_value)
+    else:
+        # Heuristic: find Hebrew text for name, numbers for yields
         for cell in row:
             if cell and is_hebrew(str(cell)):
-                parsed['name'] = clean_hebrew_string(str(cell))
+                parsed['Fund_Name'] = clean_hebrew_string(str(cell))
                 break
 
-        # Find numeric values
         numeric_values = []
         for cell in row:
             num = parse_numeric_value(cell)
             if num is not None:
                 numeric_values.append(num)
 
-        # Assign numeric values to fields based on typical order
-        field_order = ['yearly_yield', 'yield_3_years', 'yield_5_years', 'management_fee']
-        for i, num in enumerate(numeric_values[:4]):
-            if i < len(field_order):
-                parsed[field_order[i]] = num
+        if len(numeric_values) >= 1:
+            parsed['Yield_12M'] = numeric_values[0]
+        if len(numeric_values) >= 2:
+            parsed['Yield_3Y'] = numeric_values[1]
+        if len(numeric_values) >= 3:
+            parsed['Yield_5Y'] = numeric_values[2]
 
-    return parsed
+    return parsed if parsed.get('Fund_Name') else None
 
 
-def parse_text_row(parts: list) -> dict:
-    """Parse a row from text extraction (when tables fail)."""
-    parsed = {}
+def parse_text_row_with_category(parts: list, category: tuple) -> dict:
+    """Parse a text row with category information."""
+    parsed = {
+        'Fund_Type': category[0],
+        'Category': category[1],
+        'Category_Hebrew': get_category_hebrew(category[0], category[1]) if category[0] else 'Unknown'
+    }
 
-    # Collect Hebrew parts for fund name
     hebrew_parts = []
     numeric_values = []
 
@@ -580,15 +784,16 @@ def parse_text_row(parts: list) -> dict:
                 numeric_values.append(num)
 
     if hebrew_parts:
-        parsed['name'] = clean_hebrew_string(' '.join(hebrew_parts))
+        parsed['Fund_Name'] = clean_hebrew_string(' '.join(hebrew_parts))
 
-    # Assign numeric values
-    field_order = ['yearly_yield', 'yield_3_years', 'yield_5_years', 'management_fee']
-    for i, num in enumerate(numeric_values[:4]):
-        if i < len(field_order):
-            parsed[field_order[i]] = num
+    if len(numeric_values) >= 1:
+        parsed['Yield_12M'] = numeric_values[0]
+    if len(numeric_values) >= 2:
+        parsed['Yield_3Y'] = numeric_values[1]
+    if len(numeric_values) >= 3:
+        parsed['Yield_5Y'] = numeric_values[2]
 
-    return parsed if parsed.get('name') else None
+    return parsed if parsed.get('Fund_Name') else None
 
 
 # =============================================================================
@@ -596,62 +801,41 @@ def parse_text_row(parts: list) -> dict:
 # =============================================================================
 
 def find_best_match(name: str, candidates: list, threshold: int = FUZZY_MATCH_THRESHOLD) -> tuple:
-    """
-    Find the best matching name from candidates using fuzzy matching.
-
-    Args:
-        name: Name to match
-        candidates: List of candidate names
-        threshold: Minimum similarity score
-
-    Returns:
-        Tuple of (matched_name, score) or (None, 0)
-    """
+    """Find the best matching name from candidates using fuzzy matching."""
     if not name or not candidates:
         return None, 0
 
-    # Clean the input name
     clean_name = clean_hebrew_string(name)
 
-    # Try exact match first
+    # Exact match
     for candidate in candidates:
         if clean_hebrew_string(candidate) == clean_name:
             return candidate, 100
 
-    # Try partial match (substring)
+    # Partial match
     for candidate in candidates:
         clean_candidate = clean_hebrew_string(candidate)
         if clean_name in clean_candidate or clean_candidate in clean_name:
             return candidate, 90
 
-    # Fuzzy match (if available)
+    # Fuzzy match
     if FUZZY_AVAILABLE:
         result = process.extractOne(
             clean_name,
             candidates,
             scorer=fuzz.token_sort_ratio
         )
-
         if result and result[1] >= threshold:
             return result[0], result[1]
 
     return None, 0
 
 
-def compare_funds(pdf_df: pd.DataFrame, xml_df: pd.DataFrame,
-                  match_threshold: int = FUZZY_MATCH_THRESHOLD,
-                  value_tolerance: float = VALUE_TOLERANCE) -> pd.DataFrame:
+def compare_funds_by_category(pdf_df: pd.DataFrame, xml_df: pd.DataFrame,
+                               match_threshold: int = FUZZY_MATCH_THRESHOLD,
+                               value_tolerance: float = VALUE_TOLERANCE) -> pd.DataFrame:
     """
-    Compare PDF data against XML data and find discrepancies.
-
-    Args:
-        pdf_df: DataFrame from PDF extraction
-        xml_df: DataFrame from XML parsing
-        match_threshold: Minimum similarity score for fuzzy name matching
-        value_tolerance: Tolerance for numeric value comparison
-
-    Returns:
-        DataFrame with comparison results
+    Compare PDF data against XML data, matching within the same category.
     """
     print("\n🔍 Step 3: Matching and Comparing...")
 
@@ -659,68 +843,80 @@ def compare_funds(pdf_df: pd.DataFrame, xml_df: pd.DataFrame,
         print("  ❌ Cannot compare: one or both datasets are empty")
         return pd.DataFrame()
 
-    xml_names = xml_df['name'].tolist()
     results = []
+    fields_to_compare = [
+        ('Yield_12M', 'תשואה 12 חודשים'),
+        ('Yield_3Y', 'תשואה ממוצעת 3 שנים'),
+        ('Yield_5Y', 'תשואה ממוצעת 5 שנים')
+    ]
 
-    matched_count = 0
-    fields_to_compare = ['yearly_yield', 'yield_3_years', 'yield_5_years', 'management_fee']
-    field_labels = {
-        'yearly_yield': 'תשואה שנתית',
-        'yield_3_years': 'תשואה 3 שנים',
-        'yield_5_years': 'תשואה 5 שנים',
-        'management_fee': 'דמי ניהול'
-    }
+    # Group by category
+    categories = pdf_df['Category'].unique()
 
-    for _, pdf_row in pdf_df.iterrows():
-        pdf_name = pdf_row.get('name', '')
-
-        # Find matching XML record
-        matched_name, match_score = find_best_match(pdf_name, xml_names, match_threshold)
-
-        if not matched_name:
-            # No match found
-            results.append({
-                'Fund_Name': pdf_name,
-                'Field': 'ALL',
-                'PDF_Value': 'Found in PDF',
-                'XML_Value': 'NOT FOUND',
-                'Diff': 'N/A',
-                'Status': 'NO_MATCH',
-                'Match_Score': 0
-            })
+    for category in categories:
+        if not category:
             continue
 
-        matched_count += 1
-        xml_row = xml_df[xml_df['name'] == matched_name].iloc[0]
+        pdf_cat = pdf_df[pdf_df['Category'] == category]
+        xml_cat = xml_df[xml_df['Category'] == category]
 
-        # Compare each field
-        for field in fields_to_compare:
-            pdf_val = pdf_row.get(field)
-            xml_val = xml_row.get(field) if field in xml_row else None
+        if xml_cat.empty:
+            print(f"  ⚠️  No XML data for category: {get_category_hebrew(pdf_cat.iloc[0]['Fund_Type'], category)}")
+            continue
 
-            # Normalize values for comparison
-            pdf_norm = normalize_percentage(pdf_val)
-            xml_norm = normalize_percentage(xml_val)
+        xml_names = xml_cat['Fund_Name'].tolist()
+        category_hebrew = pdf_cat.iloc[0]['Category_Hebrew']
 
-            # Calculate difference
-            if pdf_norm is not None and xml_norm is not None:
-                diff = round(abs(pdf_norm - xml_norm), 4)
-                is_match = diff <= value_tolerance
-            else:
-                diff = 'N/A'
-                is_match = (pdf_norm is None and xml_norm is None)
+        print(f"  Comparing {len(pdf_cat)} PDF funds in '{category_hebrew}'...")
 
-            results.append({
-                'Fund_Name': pdf_name,
-                'Field': field_labels.get(field, field),
-                'PDF_Value': f"{pdf_norm:.2f}" if pdf_norm is not None else 'N/A',
-                'XML_Value': f"{xml_norm:.2f}" if xml_norm is not None else 'N/A',
-                'Diff': diff if isinstance(diff, str) else f"{diff:.4f}",
-                'Status': 'Match' if is_match else 'Mismatch',
-                'Match_Score': match_score
-            })
+        matched_count = 0
+        for _, pdf_row in pdf_cat.iterrows():
+            pdf_name = pdf_row.get('Fund_Name', '')
 
-    print(f"  ✓ Matched {matched_count}/{len(pdf_df)} funds from PDF")
+            matched_name, match_score = find_best_match(pdf_name, xml_names, match_threshold)
+
+            if not matched_name:
+                results.append({
+                    'Category': category_hebrew,
+                    'Fund_Name': pdf_name,
+                    'Field': 'ALL',
+                    'PDF_Value': 'Found in PDF',
+                    'XML_Value': 'NOT FOUND IN XML',
+                    'Diff': 'N/A',
+                    'Status': 'NO_MATCH',
+                    'Match_Score': 0
+                })
+                continue
+
+            matched_count += 1
+            xml_row = xml_cat[xml_cat['Fund_Name'] == matched_name].iloc[0]
+
+            for field, field_label in fields_to_compare:
+                pdf_val = pdf_row.get(field)
+                xml_val = xml_row.get(field)
+
+                pdf_norm = normalize_percentage(pdf_val)
+                xml_norm = normalize_percentage(xml_val)
+
+                if pdf_norm is not None and xml_norm is not None:
+                    diff = round(abs(pdf_norm - xml_norm), 4)
+                    is_match = diff <= value_tolerance
+                else:
+                    diff = 'N/A'
+                    is_match = (pdf_norm is None and xml_norm is None)
+
+                results.append({
+                    'Category': category_hebrew,
+                    'Fund_Name': pdf_name,
+                    'Field': field_label,
+                    'PDF_Value': f"{pdf_norm:.2f}" if pdf_norm is not None else 'N/A',
+                    'XML_Value': f"{xml_norm:.2f}" if xml_norm is not None else 'N/A',
+                    'Diff': diff if isinstance(diff, str) else f"{diff:.4f}",
+                    'Status': 'Match' if is_match else 'Mismatch',
+                    'Match_Score': match_score
+                })
+
+        print(f"    ✓ Matched {matched_count}/{len(pdf_cat)} funds")
 
     return pd.DataFrame(results)
 
@@ -730,26 +926,19 @@ def compare_funds(pdf_df: pd.DataFrame, xml_df: pd.DataFrame,
 # =============================================================================
 
 def generate_report(comparison_df: pd.DataFrame, output_path: Path) -> None:
-    """
-    Generate comparison report and save to CSV.
-
-    Args:
-        comparison_df: DataFrame with comparison results
-        output_path: Path for output CSV file
-    """
+    """Generate comparison report and save to CSV."""
     print("\n📊 Step 4: Generating Report...")
 
     if comparison_df.empty:
         print("  ❌ No comparison data to report")
         return
 
-    # Save full results to CSV
+    # Save full results
     comparison_df.to_csv(output_path, index=False, encoding='utf-8-sig')
     print(f"  ✓ Saved: {output_path}")
 
-    # Generate summary statistics
+    # Summary statistics
     total_comparisons = len(comparison_df)
-
     mismatches = comparison_df[comparison_df['Status'] == 'Mismatch']
     no_matches = comparison_df[comparison_df['Status'] == 'NO_MATCH']
     matches = comparison_df[comparison_df['Status'] == 'Match']
@@ -757,29 +946,38 @@ def generate_report(comparison_df: pd.DataFrame, output_path: Path) -> None:
     unique_funds = comparison_df['Fund_Name'].nunique()
     funds_with_issues = comparison_df[comparison_df['Status'].isin(['Mismatch', 'NO_MATCH'])]['Fund_Name'].nunique()
 
-    print("\n" + "=" * 60)
+    print("\n" + "=" * 70)
     print("                    VALIDATION SUMMARY")
-    print("=" * 60)
+    print("=" * 70)
     print(f"  Total Funds Analyzed:     {unique_funds}")
     print(f"  Total Comparisons:        {total_comparisons}")
     print(f"  Matches:                  {len(matches)}")
     print(f"  Mismatches:               {len(mismatches)}")
     print(f"  Not Found in XML:         {len(no_matches)}")
     print(f"  Funds with Issues:        {funds_with_issues}")
-    print("=" * 60)
+
+    # Summary by category
+    if 'Category' in comparison_df.columns:
+        print("\n  BY CATEGORY:")
+        for category in comparison_df['Category'].unique():
+            cat_df = comparison_df[comparison_df['Category'] == category]
+            cat_mismatches = len(cat_df[cat_df['Status'] == 'Mismatch'])
+            cat_total = len(cat_df)
+            print(f"    {category}: {cat_mismatches} mismatches / {cat_total} comparisons")
+
+    print("=" * 70)
 
     if len(mismatches) > 0:
         print("\n⚠️  DISCREPANCIES FOUND:")
-        print("-" * 60)
+        print("-" * 70)
 
-        for _, row in mismatches.head(10).iterrows():
-            print(f"  Fund: {row['Fund_Name']}")
-            print(f"    Field: {row['Field']}")
-            print(f"    PDF: {row['PDF_Value']} | XML: {row['XML_Value']} | Diff: {row['Diff']}")
+        for _, row in mismatches.head(15).iterrows():
+            print(f"  [{row['Category']}] {row['Fund_Name']}")
+            print(f"    {row['Field']}: PDF={row['PDF_Value']} | XML={row['XML_Value']} | Diff={row['Diff']}")
             print()
 
-        if len(mismatches) > 10:
-            print(f"  ... and {len(mismatches) - 10} more discrepancies")
+        if len(mismatches) > 15:
+            print(f"  ... and {len(mismatches) - 15} more discrepancies")
             print(f"  See full report in: {output_path}")
     else:
         print("\n✅ All matched values are within tolerance!")
@@ -795,32 +993,43 @@ def main():
         description='Validate pension fund data: PDF (Ground Truth) vs XML (System Result)',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
+Categories:
+  Pension (PensiaNet.xml):
+    - קרן פנסיה מקיפה (Comprehensive)
+    - קרן פנסיה כללית (General)
+
+  Insurance (hevrot.xml):
+    - משנת 2004 ואילך (2004 onwards)
+    - משנת 1992 - 2003
+    - משנת 1990 - 1991
+
 Examples:
   python validate_pension_data.py
-  python validate_pension_data.py --pdf report.pdf --xml1 hevrot.xml --xml2 PensiaNet.xml
-  python validate_pension_data.py --output results.csv
+  python validate_pension_data.py --pdf report.pdf --xml-pension PensiaNet.xml --xml-insurance hevrot.xml
         """
     )
 
     parser.add_argument(
         '--pdf',
         default='צילום מסך 2026-02-04 113024-combined.pdf',
-        help='Path to the PDF report (default: צילום מסך 2026-02-04 113024-combined.pdf)'
+        help='Path to the PDF report'
     )
     parser.add_argument(
-        '--xml1',
-        default='hevrot.xml',
-        help='Path to first XML file (default: hevrot.xml)'
-    )
-    parser.add_argument(
-        '--xml2',
+        '--xml-pension',
         default='PensiaNet.xml',
-        help='Path to second XML file (default: PensiaNet.xml)'
+        dest='xml_pension',
+        help='Path to pension XML file (default: PensiaNet.xml)'
+    )
+    parser.add_argument(
+        '--xml-insurance',
+        default='hevrot.xml',
+        dest='xml_insurance',
+        help='Path to insurance XML file (default: hevrot.xml)'
     )
     parser.add_argument(
         '--output',
         default='comparison_discrepancies.csv',
-        help='Output CSV file path (default: comparison_discrepancies.csv)'
+        help='Output CSV file path'
     )
     parser.add_argument(
         '--threshold',
@@ -837,37 +1046,39 @@ Examples:
 
     args = parser.parse_args()
 
-    # Use args values for thresholds
     match_threshold = args.threshold
     value_tolerance = args.tolerance
 
-    print("=" * 60)
+    print("=" * 70)
     print("   PENSION FUND DATA VALIDATION")
     print("   Ground Truth (PDF) vs System Result (XML)")
-    print("=" * 60)
-    print(f"  PDF File:    {args.pdf}")
-    print(f"  XML Files:   {args.xml1}, {args.xml2}")
-    print(f"  Output:      {args.output}")
+    print("=" * 70)
+    print(f"  PDF File:        {args.pdf}")
+    print(f"  Pension XML:     {args.xml_pension}")
+    print(f"  Insurance XML:   {args.xml_insurance}")
+    print(f"  Output:          {args.output}")
     print(f"  Match Threshold: {match_threshold}%")
     print(f"  Value Tolerance: {value_tolerance}")
-    print("=" * 60)
+    print("=" * 70)
 
     # Step 1: Load XML data
-    xml_paths = [args.xml1, args.xml2]
-    xml_df = load_xml_data(xml_paths)
+    xml_df = load_all_xml_data(
+        Path(args.xml_pension),
+        Path(args.xml_insurance)
+    )
 
     # Step 2: Parse PDF
-    pdf_path = Path(args.pdf)
-    pdf_df = parse_pdf_file(pdf_path)
+    pdf_df = parse_pdf_file(Path(args.pdf))
 
-    # Step 3: Compare data
-    comparison_df = compare_funds(pdf_df, xml_df, match_threshold, value_tolerance)
+    # Step 3: Compare by category
+    comparison_df = compare_funds_by_category(
+        pdf_df, xml_df, match_threshold, value_tolerance
+    )
 
     # Step 4: Generate report
-    output_path = Path(args.output)
-    generate_report(comparison_df, output_path)
+    generate_report(comparison_df, Path(args.output))
 
-    # Return appropriate exit code
+    # Exit code
     if comparison_df.empty:
         return 1
 
