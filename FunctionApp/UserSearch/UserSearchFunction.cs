@@ -17,6 +17,14 @@ public class UserSearchFunction
     private const string ExternalApiBaseUrl = "https://fundscomparisonapi.azurewebsites.net";
     private const string ExternalApiPath = "/api/Fundsnet/898dd1cf-3a25-49fd-8fd4-6c287bb654d1/funds";
 
+    // All available fields from the API
+    private const string AllFields = "FUND_ID,FUND_NAME,FUND_CLASSIFICATION,PARENT_COMPANY_NAME,PARENT_COMPANY_ID," +
+        "REPORT_PERIOD,TOTAL_ASSETS,AVG_ANNUAL_MANAGEMENT_FEE,AVG_DEPOSIT_FEE," +
+        "MONTHLY_YIELD,YEAR_TO_DATE_YIELD,YIELD_TRAILING_3_YRS,YIELD_TRAILING_5_YRS," +
+        "AVG_ANNUAL_YIELD_TRAILING_3YRS,AVG_ANNUAL_YIELD_TRAILING_5YRS," +
+        "STANDARD_DEVIATION,ALPHA,SHARPE_RATIO," +
+        "LIQUID_ASSETS_PERCENT,STOCK_MARKET_EXPOSURE,FOREIGN_EXPOSURE,FOREIGN_CURRENCY_EXPOSURE";
+
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase
@@ -39,14 +47,27 @@ public class UserSearchFunction
     {
         _logger.LogInformation("Search function processing request - calling external API");
 
+        // Parse all query parameters
         var query = req.Query["query"];
         var fundType = req.Query["fundType"] ?? "Pension";
         var minReturn = ParseDecimal(req.Query["minReturn"]);
         var maxManagementFee = ParseDecimal(req.Query["maxManagementFee"]);
+        var minReturn3Years = ParseDecimal(req.Query["minReturn3Years"]);
+        var minReturn5Years = ParseDecimal(req.Query["minReturn5Years"]);
+        var maxStockExposure = ParseDecimal(req.Query["maxStockExposure"]);
+        var minStockExposure = ParseDecimal(req.Query["minStockExposure"]);
+        var classification = req.Query["classification"];
+        var sortBy = req.Query["sortBy"] ?? "YEAR_TO_DATE_YIELD";
+        var sortDesc = req.Query["sortDesc"] != "false";
         var pageNumber = ParseInt(req.Query["pageNumber"]) ?? 1;
         var pageSize = ParseInt(req.Query["pageSize"]) ?? 10;
+        var distinct = req.Query["distinct"] == "true";
+        var complexFilters = req.Query["complexFilters"];
 
-        var result = await SearchFundsFromExternalApiAsync(query, fundType, minReturn, maxManagementFee, pageNumber, pageSize);
+        var result = await SearchFundsFromExternalApiAsync(
+            query, fundType, minReturn, maxManagementFee,
+            minReturn3Years, minReturn5Years, maxStockExposure, minStockExposure,
+            classification, sortBy, sortDesc, pageNumber, pageSize, distinct, complexFilters);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "application/json");
@@ -59,8 +80,17 @@ public class UserSearchFunction
         string fundType,
         decimal? minReturn,
         decimal? maxManagementFee,
+        decimal? minReturn3Years,
+        decimal? minReturn5Years,
+        decimal? maxStockExposure,
+        decimal? minStockExposure,
+        string? classification,
+        string sortBy,
+        bool sortDesc,
         int pageNumber,
-        int pageSize)
+        int pageSize,
+        bool distinct,
+        string? complexFilters)
     {
         try
         {
@@ -74,13 +104,11 @@ public class UserSearchFunction
                 _ => "Pension"
             };
 
-            // Build query string (FUND_TYPE not needed - determined by URL path)
-            var fields = "FUND_ID,FUND_NAME,PARENT_COMPANY_NAME,AVG_ANNUAL_MANAGEMENT_FEE,AVG_DEPOSIT_FEE,YEAR_TO_DATE_YIELD,STOCK_MARKET_EXPOSURE";
             var offset = (pageNumber - 1) * pageSize;
 
             var queryParams = new List<string>
             {
-                $"fields={fields}",
+                $"fields={AllFields}",
                 $"limit={pageSize}",
                 $"offset={offset}"
             };
@@ -91,23 +119,24 @@ public class UserSearchFunction
                 queryParams.Add($"q={Uri.EscapeDataString(query)}");
             }
 
-            // Build complex filters for minReturn and maxManagementFee
-            var filters = new List<string>();
-            if (minReturn.HasValue)
+            // Build sort parameter
+            var sortField = MapSortField(sortBy);
+            var sortDirection = sortDesc ? "desc" : "asc";
+            queryParams.Add($"sort={Uri.EscapeDataString($"{sortField} {sortDirection} nulls last")}");
+
+            // Add distinct if requested (requires sort)
+            if (distinct)
             {
-                filters.Add($"{{\"YEAR_TO_DATE_YIELD\":{{\"$gte\":{minReturn.Value}}}}}");
-            }
-            if (maxManagementFee.HasValue)
-            {
-                filters.Add($"{{\"AVG_ANNUAL_MANAGEMENT_FEE\":{{\"$lte\":{maxManagementFee.Value}}}}}");
+                queryParams.Add("distinct=true");
             }
 
-            if (filters.Count > 0)
+            // Build complex filters
+            var filters = BuildComplexFilters(minReturn, maxManagementFee, minReturn3Years, minReturn5Years,
+                maxStockExposure, minStockExposure, classification, complexFilters);
+
+            if (!string.IsNullOrEmpty(filters))
             {
-                var complexFilter = filters.Count == 1
-                    ? filters[0]
-                    : $"{{\"$and\":[{string.Join(",", filters)}]}}";
-                queryParams.Add($"complexFilters={Uri.EscapeDataString(complexFilter)}");
+                queryParams.Add($"complexFilters={Uri.EscapeDataString(filters)}");
             }
 
             var url = $"{ExternalApiBaseUrl}{ExternalApiPath}/{apiFundType}?{string.Join("&", queryParams)}";
@@ -134,7 +163,6 @@ public class UserSearchFunction
                 return new SearchResult { Funds = new List<PensionFund>(), TotalCount = 0, PageNumber = pageNumber, PageSize = pageSize };
             }
 
-            // Pass the fund type from URL since FUND_TYPE is not in the response
             var mappedFundType = apiFundType == "Insurance" ? "Executive" : "Pension";
             var funds = apiResult.Result.Records.Select(r => MapToFund(r, mappedFundType)).ToList();
             var totalCount = apiResult.Result.Total;
@@ -154,6 +182,85 @@ public class UserSearchFunction
         }
     }
 
+    private static string MapSortField(string sortBy)
+    {
+        return sortBy?.ToUpper() switch
+        {
+            "ANNUAL_RETURN" or "ANNUALRETURN" or "YEAR_TO_DATE_YIELD" => "YEAR_TO_DATE_YIELD",
+            "RETURN_3_YEARS" or "RETURN3YEARS" or "YIELD_TRAILING_3_YRS" => "YIELD_TRAILING_3_YRS",
+            "RETURN_5_YEARS" or "RETURN5YEARS" or "YIELD_TRAILING_5_YRS" => "YIELD_TRAILING_5_YRS",
+            "MANAGEMENT_FEE" or "MANAGEMENTFEE" or "AVG_ANNUAL_MANAGEMENT_FEE" => "AVG_ANNUAL_MANAGEMENT_FEE",
+            "DEPOSIT_FEE" or "DEPOSITFEE" or "AVG_DEPOSIT_FEE" => "AVG_DEPOSIT_FEE",
+            "SHARPE" or "SHARPE_RATIO" => "SHARPE_RATIO",
+            "ALPHA" => "ALPHA",
+            "STANDARD_DEVIATION" => "STANDARD_DEVIATION",
+            "STOCK_EXPOSURE" or "STOCK_MARKET_EXPOSURE" => "STOCK_MARKET_EXPOSURE",
+            "TOTAL_ASSETS" => "TOTAL_ASSETS",
+            _ => "YEAR_TO_DATE_YIELD"
+        };
+    }
+
+    private static string? BuildComplexFilters(
+        decimal? minReturn,
+        decimal? maxManagementFee,
+        decimal? minReturn3Years,
+        decimal? minReturn5Years,
+        decimal? maxStockExposure,
+        decimal? minStockExposure,
+        string? classification,
+        string? existingFilters)
+    {
+        var conditions = new List<string>();
+
+        if (minReturn.HasValue)
+        {
+            conditions.Add($"{{\"YEAR_TO_DATE_YIELD\":{{\"$gte\":{minReturn.Value}}}}}");
+        }
+
+        if (maxManagementFee.HasValue)
+        {
+            conditions.Add($"{{\"AVG_ANNUAL_MANAGEMENT_FEE\":{{\"$lte\":{maxManagementFee.Value}}}}}");
+        }
+
+        if (minReturn3Years.HasValue)
+        {
+            conditions.Add($"{{\"YIELD_TRAILING_3_YRS\":{{\"$gte\":{minReturn3Years.Value}}}}}");
+        }
+
+        if (minReturn5Years.HasValue)
+        {
+            conditions.Add($"{{\"YIELD_TRAILING_5_YRS\":{{\"$gte\":{minReturn5Years.Value}}}}}");
+        }
+
+        if (maxStockExposure.HasValue)
+        {
+            conditions.Add($"{{\"STOCK_MARKET_EXPOSURE_PERCENT\":{{\"$lte\":{maxStockExposure.Value}}}}}");
+        }
+
+        if (minStockExposure.HasValue)
+        {
+            conditions.Add($"{{\"STOCK_MARKET_EXPOSURE_PERCENT\":{{\"$gte\":{minStockExposure.Value}}}}}");
+        }
+
+        // Add existing complex filters if provided
+        if (!string.IsNullOrEmpty(existingFilters))
+        {
+            conditions.Add(existingFilters);
+        }
+
+        if (conditions.Count == 0)
+        {
+            return null;
+        }
+
+        if (conditions.Count == 1)
+        {
+            return conditions[0];
+        }
+
+        return $"{{\"$and\":[{string.Join(",", conditions)}]}}";
+    }
+
     private static PensionFund MapToFund(ExternalFundRecord record, string fundType)
     {
         // Determine risk level based on stock market exposure
@@ -169,10 +276,26 @@ public class UserSearchFunction
             Id = record.FundId ?? "",
             Name = record.FundName ?? "",
             FundType = fundType,
+            Classification = record.FundClassification,
             ManagingCompany = record.ParentCompanyName ?? "",
-            AnnualReturn = record.YearToDateYield ?? 0,
+            ManagingCompanyId = record.ParentCompanyId,
+            ReportPeriod = record.ReportPeriod,
             ManagementFee = record.AvgAnnualManagementFee ?? 0,
             DepositFee = record.AvgDepositFee ?? 0,
+            MonthlyYield = record.MonthlyYield,
+            AnnualReturn = record.YearToDateYield ?? 0,
+            YieldTrailing3Years = record.YieldTrailing3Yrs,
+            YieldTrailing5Years = record.YieldTrailing5Yrs,
+            AvgAnnualYield3Years = record.AvgAnnualYieldTrailing3Yrs,
+            AvgAnnualYield5Years = record.AvgAnnualYieldTrailing5Yrs,
+            StandardDeviation = record.StandardDeviation,
+            Alpha = record.Alpha,
+            SharpeRatio = record.SharpeRatio,
+            TotalAssets = record.TotalAssets,
+            LiquidAssetsPercent = record.LiquidAssetsPercent,
+            StockMarketExposure = record.StockMarketExposure,
+            ForeignExposure = record.ForeignExposure,
+            ForeignCurrencyExposure = record.ForeignCurrencyExposure,
             RiskLevel = riskLevel,
             LastUpdated = DateTime.UtcNow
         };
@@ -213,8 +336,20 @@ public class ExternalFundRecord
     [JsonPropertyName("FUND_NAME")]
     public string? FundName { get; set; }
 
+    [JsonPropertyName("FUND_CLASSIFICATION")]
+    public string? FundClassification { get; set; }
+
     [JsonPropertyName("PARENT_COMPANY_NAME")]
     public string? ParentCompanyName { get; set; }
+
+    [JsonPropertyName("PARENT_COMPANY_ID")]
+    public string? ParentCompanyId { get; set; }
+
+    [JsonPropertyName("REPORT_PERIOD")]
+    public string? ReportPeriod { get; set; }
+
+    [JsonPropertyName("TOTAL_ASSETS")]
+    public decimal? TotalAssets { get; set; }
 
     [JsonPropertyName("AVG_ANNUAL_MANAGEMENT_FEE")]
     public decimal? AvgAnnualManagementFee { get; set; }
@@ -222,9 +357,42 @@ public class ExternalFundRecord
     [JsonPropertyName("AVG_DEPOSIT_FEE")]
     public decimal? AvgDepositFee { get; set; }
 
+    [JsonPropertyName("MONTHLY_YIELD")]
+    public decimal? MonthlyYield { get; set; }
+
     [JsonPropertyName("YEAR_TO_DATE_YIELD")]
     public decimal? YearToDateYield { get; set; }
 
+    [JsonPropertyName("YIELD_TRAILING_3_YRS")]
+    public decimal? YieldTrailing3Yrs { get; set; }
+
+    [JsonPropertyName("YIELD_TRAILING_5_YRS")]
+    public decimal? YieldTrailing5Yrs { get; set; }
+
+    [JsonPropertyName("AVG_ANNUAL_YIELD_TRAILING_3YRS")]
+    public decimal? AvgAnnualYieldTrailing3Yrs { get; set; }
+
+    [JsonPropertyName("AVG_ANNUAL_YIELD_TRAILING_5YRS")]
+    public decimal? AvgAnnualYieldTrailing5Yrs { get; set; }
+
+    [JsonPropertyName("STANDARD_DEVIATION")]
+    public decimal? StandardDeviation { get; set; }
+
+    [JsonPropertyName("ALPHA")]
+    public decimal? Alpha { get; set; }
+
+    [JsonPropertyName("SHARPE_RATIO")]
+    public decimal? SharpeRatio { get; set; }
+
+    [JsonPropertyName("LIQUID_ASSETS_PERCENT")]
+    public decimal? LiquidAssetsPercent { get; set; }
+
     [JsonPropertyName("STOCK_MARKET_EXPOSURE")]
     public decimal? StockMarketExposure { get; set; }
+
+    [JsonPropertyName("FOREIGN_EXPOSURE")]
+    public decimal? ForeignExposure { get; set; }
+
+    [JsonPropertyName("FOREIGN_CURRENCY_EXPOSURE")]
+    public decimal? ForeignCurrencyExposure { get; set; }
 }

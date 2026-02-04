@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using FunctionApp.Models;
 using FunctionApp.Services;
+using FunctionApp.UserSearch;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
@@ -18,6 +19,13 @@ public class ChatFunction
 
     private const string ExternalApiBaseUrl = "https://fundscomparisonapi.azurewebsites.net";
     private const string ExternalApiPath = "/api/Fundsnet/898dd1cf-3a25-49fd-8fd4-6c287bb654d1/funds";
+
+    private const string AllFields = "FUND_ID,FUND_NAME,FUND_CLASSIFICATION,PARENT_COMPANY_NAME,PARENT_COMPANY_ID," +
+        "REPORT_PERIOD,TOTAL_ASSETS,AVG_ANNUAL_MANAGEMENT_FEE,AVG_DEPOSIT_FEE," +
+        "MONTHLY_YIELD,YEAR_TO_DATE_YIELD,YIELD_TRAILING_3_YRS,YIELD_TRAILING_5_YRS," +
+        "AVG_ANNUAL_YIELD_TRAILING_3YRS,AVG_ANNUAL_YIELD_TRAILING_5YRS," +
+        "STANDARD_DEVIATION,ALPHA,SHARPE_RATIO," +
+        "LIQUID_ASSETS_PERCENT,STOCK_MARKET_EXPOSURE,FOREIGN_EXPOSURE,FOREIGN_CURRENCY_EXPOSURE";
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -46,7 +54,11 @@ public class ChatFunction
 - תשואות ורמות סיכון
 - זכויות עובדים ומעסיקים
 
-יש לך גישה לנתונים עדכניים על מאות קרנות פנסיה וביטוחי מנהלים בישראל.";
+יש לך גישה לנתונים עדכניים על מאות קרנות פנסיה וביטוחי מנהלים בישראל, כולל:
+- תשואות (חודשית, שנתית, 3 שנים, 5 שנים)
+- דמי ניהול ודמי הפקדה
+- מדדי סיכון (סטיית תקן, שארפ, אלפא)
+- חשיפה למניות, לחו""ל ולמט""ח";
 
     public ChatFunction(ILogger<ChatFunction> logger, IAzureOpenAIService openAIService, IHttpClientFactory httpClientFactory)
     {
@@ -147,7 +159,8 @@ public class ChatFunction
         {
             intent.Type = "performance_inquiry";
         }
-        else if (messageLower.Contains("risk") || messageLower.Contains("סיכון"))
+        else if (messageLower.Contains("risk") || messageLower.Contains("סיכון") ||
+                 messageLower.Contains("שארפ") || messageLower.Contains("אלפא"))
         {
             intent.Type = "risk_inquiry";
         }
@@ -176,8 +189,8 @@ public class ChatFunction
             "comparison" => "אשמח לעזור לך להשוות בין קרנות פנסיה או ביטוחי מנהלים. איזה קרנות תרצה להשוות? אתה יכול לציין שמות ספציפיים או לבקש השוואה לפי קריטריונים כמו תשואה, דמי ניהול או רמת סיכון.",
             "recommendation" => "כדי להמליץ לך על קרן מתאימה, אצטרך לדעת קצת יותר על הצרכים שלך. מה חשוב לך יותר - תשואה גבוהה, דמי ניהול נמוכים, או רמת סיכון נמוכה?",
             "fee_inquiry" => "דמי הניהול משתנים בין הקרנות השונות. בדרך כלל נעים בין 0.1% ל-1.5%. האם תרצה לראות רשימה של קרנות עם דמי הניהול הנמוכים ביותר?",
-            "performance_inquiry" => "התשואות של קרנות הפנסיה וביטוחי המנהלים משתנות לפי תקופה ורמת סיכון. האם תרצה לראות את הקרנות עם התשואות הגבוהות ביותר בשנה האחרונה?",
-            "risk_inquiry" => "רמת הסיכון היא פרמטר חשוב בבחירת קרן. קרנות עם סיכון גבוה יותר עשויות להניב תשואות גבוהות יותר לאורך זמן, אך גם להפסיד יותר בתקופות קשות. מה רמת הסיכון המועדפת עליך - נמוכה, בינונית או גבוהה?",
+            "performance_inquiry" => "התשואות של קרנות הפנסיה וביטוחי המנהלים משתנות לפי תקופה ורמת סיכון. האם תרצה לראות את הקרנות עם התשואות הגבוהות ביותר בשנה האחרונה, 3 שנים או 5 שנים?",
+            "risk_inquiry" => "רמת הסיכון היא פרמטר חשוב בבחירת קרן. קרנות עם סיכון גבוה יותר עשויות להניב תשואות גבוהות יותר לאורך זמן, אך גם להפסיד יותר בתקופות קשות. מדדי הסיכון כוללים סטיית תקן, מדד שארפ ואלפא. מה רמת הסיכון המועדפת עליך?",
             "pension_general" => "קרנות פנסיה הן מכשיר חיסכון ארוך טווח לפרישה. יש לנו מידע על מאות קרנות פנסיה. במה אוכל לעזור לך?",
             "executive_general" => "ביטוח מנהלים הוא מוצר פנסיוני המשלב חיסכון עם כיסויים ביטוחיים. יש לנו מידע על מאות ביטוחי מנהלים. במה אוכל לעזור לך?",
             _ => "שלום! אני כאן לעזור לך למצוא את קרן הפנסיה או ביטוח המנהלים המתאים לך. אתה יכול לשאול אותי על השוואות בין קרנות, תשואות, דמי ניהול, או לבקש המלצות מותאמות אישית."
@@ -193,12 +206,13 @@ public class ChatFunction
             "fee_inquiry" => "AVG_ANNUAL_MANAGEMENT_FEE nulls last",
             "performance_inquiry" => "YEAR_TO_DATE_YIELD desc nulls last",
             "recommendation" => "YEAR_TO_DATE_YIELD desc nulls last",
+            "risk_inquiry" => "SHARPE_RATIO desc nulls last",
             _ => "YEAR_TO_DATE_YIELD desc nulls last"
         };
 
         try
         {
-            var funds = await FetchFundsFromApiAsync(fundType, sortField, 3);
+            var funds = await FetchFundsFromApiAsync(fundType, sortField, 5);
             return funds;
         }
         catch (Exception ex)
@@ -218,8 +232,7 @@ public class ChatFunction
             _ => "Pension"
         };
 
-        var fields = "FUND_ID,FUND_NAME,PARENT_COMPANY_NAME,AVG_ANNUAL_MANAGEMENT_FEE,AVG_DEPOSIT_FEE,YEAR_TO_DATE_YIELD,STOCK_MARKET_EXPOSURE";
-        var url = $"{ExternalApiBaseUrl}{ExternalApiPath}/{apiFundType}?fields={fields}&limit={limit}&sort={Uri.EscapeDataString(sort)}";
+        var url = $"{ExternalApiBaseUrl}{ExternalApiPath}/{apiFundType}?fields={AllFields}&limit={limit}&sort={Uri.EscapeDataString(sort)}";
 
         var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
@@ -257,10 +270,26 @@ public class ChatFunction
             Id = record.FundId ?? "",
             Name = record.FundName ?? "",
             FundType = fundType,
+            Classification = record.FundClassification,
             ManagingCompany = record.ParentCompanyName ?? "",
-            AnnualReturn = record.YearToDateYield ?? 0,
+            ManagingCompanyId = record.ParentCompanyId,
+            ReportPeriod = record.ReportPeriod,
             ManagementFee = record.AvgAnnualManagementFee ?? 0,
             DepositFee = record.AvgDepositFee ?? 0,
+            MonthlyYield = record.MonthlyYield,
+            AnnualReturn = record.YearToDateYield ?? 0,
+            YieldTrailing3Years = record.YieldTrailing3Yrs,
+            YieldTrailing5Years = record.YieldTrailing5Yrs,
+            AvgAnnualYield3Years = record.AvgAnnualYieldTrailing3Yrs,
+            AvgAnnualYield5Years = record.AvgAnnualYieldTrailing5Yrs,
+            StandardDeviation = record.StandardDeviation,
+            Alpha = record.Alpha,
+            SharpeRatio = record.SharpeRatio,
+            TotalAssets = record.TotalAssets,
+            LiquidAssetsPercent = record.LiquidAssetsPercent,
+            StockMarketExposure = record.StockMarketExposure,
+            ForeignExposure = record.ForeignExposure,
+            ForeignCurrencyExposure = record.ForeignCurrencyExposure,
             RiskLevel = riskLevel,
             LastUpdated = DateTime.UtcNow
         };
@@ -273,7 +302,7 @@ public class ChatFunction
             "comparison" => new List<string>
             {
                 "השווה בין קרנות הפנסיה המובילות",
-                "איזו קרן עדיפה מבחינת תשואה?",
+                "איזו קרן עדיפה מבחינת תשואה ל-5 שנים?",
                 "איזו קרן עדיפה מבחינת דמי ניהול?"
             },
             "recommendation" => new List<string>
@@ -288,6 +317,12 @@ public class ChatFunction
                 "איך דמי הניהול משפיעים על החיסכון שלי?",
                 "האם ניתן להפחית את דמי הניהול?"
             },
+            "risk_inquiry" => new List<string>
+            {
+                "מה זה מדד שארפ?",
+                "מה זה אלפא?",
+                "איך בוחרים קרן לפי רמת סיכון?"
+            },
             _ => new List<string>
             {
                 "השווה בין קרנות פנסיה",
@@ -297,42 +332,4 @@ public class ChatFunction
             }
         };
     }
-}
-
-// Models for external API response
-public class ExternalApiResponse
-{
-    public bool Success { get; set; }
-    public ExternalApiResult? Result { get; set; }
-}
-
-public class ExternalApiResult
-{
-    public int Total { get; set; }
-    public int Limit { get; set; }
-    public List<ExternalFundRecord>? Records { get; set; }
-}
-
-public class ExternalFundRecord
-{
-    [JsonPropertyName("FUND_ID")]
-    public string? FundId { get; set; }
-
-    [JsonPropertyName("FUND_NAME")]
-    public string? FundName { get; set; }
-
-    [JsonPropertyName("PARENT_COMPANY_NAME")]
-    public string? ParentCompanyName { get; set; }
-
-    [JsonPropertyName("AVG_ANNUAL_MANAGEMENT_FEE")]
-    public decimal? AvgAnnualManagementFee { get; set; }
-
-    [JsonPropertyName("AVG_DEPOSIT_FEE")]
-    public decimal? AvgDepositFee { get; set; }
-
-    [JsonPropertyName("YEAR_TO_DATE_YIELD")]
-    public decimal? YearToDateYield { get; set; }
-
-    [JsonPropertyName("STOCK_MARKET_EXPOSURE")]
-    public decimal? StockMarketExposure { get; set; }
 }
