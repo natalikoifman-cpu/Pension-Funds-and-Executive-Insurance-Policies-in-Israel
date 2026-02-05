@@ -8,7 +8,6 @@ function SearchPage() {
     query: '',
     fundType: 'Pension',
     minReturn: '',
-    maxManagementFee: '',
     minReturn3Years: '',
     minReturn5Years: '',
     maxStockExposure: '',
@@ -58,7 +57,6 @@ function SearchPage() {
     if (filters.query) params.append('query', filters.query);
     if (filters.fundType) params.append('fundType', filters.fundType);
     if (filters.minReturn) params.append('minReturn', filters.minReturn);
-    if (filters.maxManagementFee) params.append('maxManagementFee', filters.maxManagementFee);
     if (filters.minReturn3Years) params.append('minReturn3Years', filters.minReturn3Years);
     if (filters.minReturn5Years) params.append('minReturn5Years', filters.minReturn5Years);
     if (filters.maxStockExposure) params.append('maxStockExposure', filters.maxStockExposure);
@@ -92,7 +90,6 @@ function SearchPage() {
       query: '',
       fundType: 'Pension',
       minReturn: '',
-      maxManagementFee: '',
       minReturn3Years: '',
       minReturn5Years: '',
       maxStockExposure: '',
@@ -217,19 +214,6 @@ function SearchPage() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="maxManagementFee">דמי ניהול מקסימליים (%)</label>
-            <input
-              type="number"
-              id="maxManagementFee"
-              name="maxManagementFee"
-              value={filters.maxManagementFee}
-              onChange={handleInputChange}
-              placeholder="לדוגמה: 0.5"
-              step="0.01"
-            />
-          </div>
-
-          <div className="form-group">
             <label htmlFor="minReturn5Years">תשואה 5 שנים מינימלית (%)</label>
             <input
               type="number"
@@ -305,18 +289,6 @@ function SearchPage() {
                     {selectedFunds.map(fund => (
                       <td key={fund.id}>{fund.managingCompany}</td>
                     ))}
-                  </tr>
-                  <tr>
-                    <td>דמי ניהול שנתיים</td>
-                    {selectedFunds.map(fund => {
-                      const best = getBestValue(selectedFunds, 'managementFee', true);
-                      const isBest = fund.managementFee === best;
-                      return (
-                        <td key={fund.id} className={isBest ? 'best-value' : ''}>
-                          {formatPercent(fund.managementFee)}
-                        </td>
-                      );
-                    })}
                   </tr>
                   <tr>
                     <td>דמי הפקדה</td>
@@ -420,14 +392,6 @@ function SearchPage() {
                       <td key={fund.id}>{formatAssets(fund.totalAssets)}</td>
                     ))}
                   </tr>
-                  <tr>
-                    <td>רמת סיכון</td>
-                    {selectedFunds.map(fund => (
-                      <td key={fund.id} className={`risk-${fund.riskLevel?.toLowerCase()}`}>
-                        {getRiskLevelHebrew(fund.riskLevel)}
-                      </td>
-                    ))}
-                  </tr>
                 </tbody>
               </table>
             </div>
@@ -494,18 +458,8 @@ function SearchPage() {
                           </span>
                         </div>
                         <div className="stat">
-                          <span className="stat-label">דמי ניהול</span>
-                          <span className="stat-value">{formatPercent(fund.managementFee)}</span>
-                        </div>
-                        <div className="stat">
                           <span className="stat-label">מדד שארפ</span>
                           <span className="stat-value">{formatNumber(fund.sharpeRatio)}</span>
-                        </div>
-                        <div className="stat">
-                          <span className="stat-label">רמת סיכון</span>
-                          <span className={`stat-value risk-${fund.riskLevel?.toLowerCase()}`}>
-                            {getRiskLevelHebrew(fund.riskLevel)}
-                          </span>
                         </div>
                       </div>
 
