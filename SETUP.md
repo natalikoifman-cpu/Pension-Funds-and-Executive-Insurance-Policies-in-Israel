@@ -96,7 +96,7 @@ az functionapp config appsettings set \
 
 ### Step 4: Deploy
 
-Push to `main` branch - GitHub Actions will automatically deploy:
+Trigger the deploy workflows manually from GitHub Actions when you are ready to release:
 - Backend changes → Azure Functions
 - Frontend changes → Azure Static Web Apps
 
