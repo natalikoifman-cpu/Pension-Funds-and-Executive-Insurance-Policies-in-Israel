@@ -7,12 +7,7 @@ function SearchPage() {
   const [filters, setFilters] = useState({
     query: '',
     fundType: 'Pension',
-    minReturn: '',
-    minReturn3Years: '',
-    minReturn5Years: '',
-    maxStockExposure: '',
-    sortBy: 'YEAR_TO_DATE_YIELD',
-    sortDesc: true
+    maxStockExposure: ''
   });
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -56,12 +51,7 @@ function SearchPage() {
 
     if (filters.query) params.append('query', filters.query);
     if (filters.fundType) params.append('fundType', filters.fundType);
-    if (filters.minReturn) params.append('minReturn', filters.minReturn);
-    if (filters.minReturn3Years) params.append('minReturn3Years', filters.minReturn3Years);
-    if (filters.minReturn5Years) params.append('minReturn5Years', filters.minReturn5Years);
     if (filters.maxStockExposure) params.append('maxStockExposure', filters.maxStockExposure);
-    if (filters.sortBy) params.append('sortBy', filters.sortBy);
-    params.append('sortDesc', filters.sortDesc);
     params.append('pageNumber', pageNum);
     params.append('pageSize', pageSize);
 
@@ -89,12 +79,7 @@ function SearchPage() {
     setFilters({
       query: '',
       fundType: 'Pension',
-      minReturn: '',
-      minReturn3Years: '',
-      minReturn5Years: '',
-      maxStockExposure: '',
-      sortBy: 'YEAR_TO_DATE_YIELD',
-      sortDesc: true
+      maxStockExposure: ''
     });
     setResults(null);
     setSelectedFunds([]);
@@ -112,11 +97,6 @@ function SearchPage() {
     });
   };
 
-  const getRiskLevelHebrew = (level) => {
-    const levels = { Low: 'נמוך', Medium: 'בינוני', High: 'גבוה' };
-    return levels[level] || level || '-';
-  };
-
   const getFundTypeHebrew = (type) => {
     const types = { Pension: 'קרן פנסיה', Executive: 'ביטוח מנהלים' };
     return types[type] || type;
@@ -131,13 +111,6 @@ function SearchPage() {
     if (num === null || num === undefined) return '-';
     const formatted = Number(num).toFixed(2);
     return `${formatted}%`;
-  };
-
-  const formatAssets = (num) => {
-    if (num === null || num === undefined) return '-';
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)} מיליון`;
-    if (num >= 1000) return `${(num / 1000).toFixed(1)} אלף`;
-    return num.toFixed(0);
   };
 
   const getBestValue = (funds, field, isLowerBetter = false) => {
@@ -178,52 +151,6 @@ function SearchPage() {
               <option value="Pension">קרן פנסיה</option>
               <option value="Executive">ביטוח מנהלים</option>
             </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="sortBy">מיין לפי</label>
-            <select
-              id="sortBy"
-              name="sortBy"
-              value={filters.sortBy}
-              onChange={handleInputChange}
-            >
-              <option value="YEAR_TO_DATE_YIELD">תשואה שנתית</option>
-              <option value="YIELD_TRAILING_3_YRS">תשואה 3 שנים</option>
-              <option value="YIELD_TRAILING_5_YRS">תשואה 5 שנים</option>
-              <option value="AVG_ANNUAL_MANAGEMENT_FEE">דמי ניהול</option>
-              <option value="SHARPE_RATIO">מדד שארפ</option>
-              <option value="ALPHA">אלפא</option>
-              <option value="TOTAL_ASSETS">סך נכסים</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="minReturn">תשואה שנתית מינימלית (%)</label>
-            <input
-              type="number"
-              id="minReturn"
-              name="minReturn"
-              value={filters.minReturn}
-              onChange={handleInputChange}
-              placeholder="לדוגמה: 5"
-              step="0.1"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="minReturn5Years">תשואה 5 שנים מינימלית (%)</label>
-            <input
-              type="number"
-              id="minReturn5Years"
-              name="minReturn5Years"
-              value={filters.minReturn5Years}
-              onChange={handleInputChange}
-              placeholder="לדוגמה: 30"
-              step="1"
-            />
           </div>
 
           <div className="form-group">
@@ -315,30 +242,6 @@ function SearchPage() {
                     })}
                   </tr>
                   <tr>
-                    <td>תשואה מצטברת 3 שנים</td>
-                    {selectedFunds.map(fund => {
-                      const best = getBestValue(selectedFunds, 'yieldTrailing3Years');
-                      const isBest = fund.yieldTrailing3Years === best;
-                      return (
-                        <td key={fund.id} className={isBest ? 'best-value' : ''}>
-                          {formatPercent(fund.yieldTrailing3Years)}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                  <tr>
-                    <td>תשואה מצטברת 5 שנים</td>
-                    {selectedFunds.map(fund => {
-                      const best = getBestValue(selectedFunds, 'yieldTrailing5Years');
-                      const isBest = fund.yieldTrailing5Years === best;
-                      return (
-                        <td key={fund.id} className={isBest ? 'best-value' : ''}>
-                          {formatPercent(fund.yieldTrailing5Years)}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                  <tr>
                     <td>סטיית תקן</td>
                     {selectedFunds.map(fund => {
                       const best = getBestValue(selectedFunds, 'standardDeviation', true);
@@ -346,30 +249,6 @@ function SearchPage() {
                       return (
                         <td key={fund.id} className={isBest ? 'best-value' : ''}>
                           {formatNumber(fund.standardDeviation)}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                  <tr>
-                    <td>מדד שארפ</td>
-                    {selectedFunds.map(fund => {
-                      const best = getBestValue(selectedFunds, 'sharpeRatio');
-                      const isBest = fund.sharpeRatio === best;
-                      return (
-                        <td key={fund.id} className={isBest ? 'best-value' : ''}>
-                          {formatNumber(fund.sharpeRatio)}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                  <tr>
-                    <td>אלפא</td>
-                    {selectedFunds.map(fund => {
-                      const best = getBestValue(selectedFunds, 'alpha');
-                      const isBest = fund.alpha === best;
-                      return (
-                        <td key={fund.id} className={isBest ? 'best-value' : ''}>
-                          {formatNumber(fund.alpha)}
                         </td>
                       );
                     })}
@@ -386,19 +265,12 @@ function SearchPage() {
                       <td key={fund.id}>{formatPercent(fund.foreignExposure)}</td>
                     ))}
                   </tr>
-                  <tr>
-                    <td>סך נכסים</td>
-                    {selectedFunds.map(fund => (
-                      <td key={fund.id}>{formatAssets(fund.totalAssets)}</td>
-                    ))}
-                  </tr>
                 </tbody>
               </table>
             </div>
             <div className="comparison-footer">
               <p className="comparison-note">
-                <strong>הערה:</strong> מדד שארפ מודד תשואה מתואמת סיכון - ככל שהוא גבוה יותר, כך הקרן מניבה תשואה טובה יותר ביחס לסיכון.
-                אלפא מודד ביצועי יתר ביחס למדד ייחוס.
+                <strong>הערה:</strong> סטיית תקן מודדת את רמת התנודתיות של התשואות - ככל שהיא נמוכה יותר, כך ההשקעה יציבה יותר.
               </p>
             </div>
           </div>
@@ -446,20 +318,8 @@ function SearchPage() {
                           </span>
                         </div>
                         <div className="stat">
-                          <span className="stat-label">תשואה 3 שנים</span>
-                          <span className={`stat-value ${fund.yieldTrailing3Years > 0 ? 'positive' : 'negative'}`}>
-                            {formatPercent(fund.yieldTrailing3Years)}
-                          </span>
-                        </div>
-                        <div className="stat">
-                          <span className="stat-label">תשואה 5 שנים</span>
-                          <span className={`stat-value ${fund.yieldTrailing5Years > 0 ? 'positive' : 'negative'}`}>
-                            {formatPercent(fund.yieldTrailing5Years)}
-                          </span>
-                        </div>
-                        <div className="stat">
-                          <span className="stat-label">מדד שארפ</span>
-                          <span className="stat-value">{formatNumber(fund.sharpeRatio)}</span>
+                          <span className="stat-label">חשיפה למניות</span>
+                          <span className="stat-value">{formatPercent(fund.stockMarketExposure)}</span>
                         </div>
                       </div>
 
