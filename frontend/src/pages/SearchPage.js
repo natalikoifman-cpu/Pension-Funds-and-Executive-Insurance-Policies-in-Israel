@@ -307,18 +307,6 @@ function SearchPage() {
                     ))}
                   </tr>
                   <tr>
-                    <td>דמי ניהול שנתיים</td>
-                    {selectedFunds.map(fund => {
-                      const best = getBestValue(selectedFunds, 'managementFee', true);
-                      const isBest = fund.managementFee === best;
-                      return (
-                        <td key={fund.id} className={isBest ? 'best-value' : ''}>
-                          {formatPercent(fund.managementFee)}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                  <tr>
                     <td>דמי הפקדה</td>
                     {selectedFunds.map(fund => {
                       const best = getBestValue(selectedFunds, 'depositFee', true);
@@ -420,14 +408,6 @@ function SearchPage() {
                       <td key={fund.id}>{formatAssets(fund.totalAssets)}</td>
                     ))}
                   </tr>
-                  <tr>
-                    <td>רמת סיכון</td>
-                    {selectedFunds.map(fund => (
-                      <td key={fund.id} className={`risk-${fund.riskLevel?.toLowerCase()}`}>
-                        {getRiskLevelHebrew(fund.riskLevel)}
-                      </td>
-                    ))}
-                  </tr>
                 </tbody>
               </table>
             </div>
@@ -494,18 +474,8 @@ function SearchPage() {
                           </span>
                         </div>
                         <div className="stat">
-                          <span className="stat-label">דמי ניהול</span>
-                          <span className="stat-value">{formatPercent(fund.managementFee)}</span>
-                        </div>
-                        <div className="stat">
                           <span className="stat-label">מדד שארפ</span>
                           <span className="stat-value">{formatNumber(fund.sharpeRatio)}</span>
-                        </div>
-                        <div className="stat">
-                          <span className="stat-label">רמת סיכון</span>
-                          <span className={`stat-value risk-${fund.riskLevel?.toLowerCase()}`}>
-                            {getRiskLevelHebrew(fund.riskLevel)}
-                          </span>
                         </div>
                       </div>
 
