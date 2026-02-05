@@ -8,7 +8,6 @@ function SearchPage() {
     query: '',
     fundType: 'Pension',
     minReturn: '',
-    maxManagementFee: '',
     minReturn3Years: '',
     minReturn5Years: '',
     maxStockExposure: '',
@@ -58,7 +57,6 @@ function SearchPage() {
     if (filters.query) params.append('query', filters.query);
     if (filters.fundType) params.append('fundType', filters.fundType);
     if (filters.minReturn) params.append('minReturn', filters.minReturn);
-    if (filters.maxManagementFee) params.append('maxManagementFee', filters.maxManagementFee);
     if (filters.minReturn3Years) params.append('minReturn3Years', filters.minReturn3Years);
     if (filters.minReturn5Years) params.append('minReturn5Years', filters.minReturn5Years);
     if (filters.maxStockExposure) params.append('maxStockExposure', filters.maxStockExposure);
@@ -92,7 +90,6 @@ function SearchPage() {
       query: '',
       fundType: 'Pension',
       minReturn: '',
-      maxManagementFee: '',
       minReturn3Years: '',
       minReturn5Years: '',
       maxStockExposure: '',
@@ -213,19 +210,6 @@ function SearchPage() {
               onChange={handleInputChange}
               placeholder="לדוגמה: 5"
               step="0.1"
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="maxManagementFee">דמי ניהול מקסימליים (%)</label>
-            <input
-              type="number"
-              id="maxManagementFee"
-              name="maxManagementFee"
-              value={filters.maxManagementFee}
-              onChange={handleInputChange}
-              placeholder="לדוגמה: 0.5"
-              step="0.01"
             />
           </div>
 
