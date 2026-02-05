@@ -7,6 +7,7 @@ function SearchPage() {
   const [filters, setFilters] = useState({
     query: '',
     fundType: 'Pension',
+    sortBy: 'YEAR_TO_DATE_YIELD',
     maxStockExposure: ''
   });
   const [results, setResults] = useState(null);
@@ -51,7 +52,9 @@ function SearchPage() {
 
     if (filters.query) params.append('query', filters.query);
     if (filters.fundType) params.append('fundType', filters.fundType);
+    if (filters.sortBy) params.append('sortBy', filters.sortBy);
     if (filters.maxStockExposure) params.append('maxStockExposure', filters.maxStockExposure);
+    params.append('sortDesc', 'true');
     params.append('pageNumber', pageNum);
     params.append('pageSize', pageSize);
 
@@ -79,6 +82,7 @@ function SearchPage() {
     setFilters({
       query: '',
       fundType: 'Pension',
+      sortBy: 'YEAR_TO_DATE_YIELD',
       maxStockExposure: ''
     });
     setResults(null);
@@ -150,6 +154,22 @@ function SearchPage() {
             >
               <option value="Pension">קרן פנסיה</option>
               <option value="Executive">ביטוח מנהלים</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="form-row">
+          <div className="form-group">
+            <label htmlFor="sortBy">מיין לפי</label>
+            <select
+              id="sortBy"
+              name="sortBy"
+              value={filters.sortBy}
+              onChange={handleInputChange}
+            >
+              <option value="YEAR_TO_DATE_YIELD">תשואה שנתית</option>
+              <option value="YIELD_TRAILING_3_YRS">תשואה 3 שנים</option>
+              <option value="YIELD_TRAILING_5_YRS">תשואה 5 שנים</option>
             </select>
           </div>
 
