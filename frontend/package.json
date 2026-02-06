@@ -10,7 +10,7 @@
   },
   "scripts": {
     "start": "react-scripts start",
-    "build": "react-scripts build",
+    "build": "node -e \"if (process.env.VITE_API_URL && !process.env.REACT_APP_API_URL) process.env.REACT_APP_API_URL=process.env.VITE_API_URL; process.env.BUILD_PATH='dist'; require('react-scripts/scripts/build');\"",
     "test": "react-scripts test",
     "eject": "react-scripts eject"
   },

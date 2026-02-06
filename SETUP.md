@@ -116,7 +116,7 @@ func azure functionapp publish pension-funds-api --resource-group rg-natali.koif
 ```bash
 cd frontend
 npm run build
-az staticwebapp upload --app-name pension-funds-web --resource-group rg-natali.koifman-9117 --app-location build
+az staticwebapp upload --app-name pension-funds-web --resource-group rg-natali.koifman-9117 --app-location dist
 ```
 
 ---
