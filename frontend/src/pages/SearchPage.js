@@ -429,6 +429,10 @@ function SearchPage() {
           )}
         </div>
       )}
+
+      <footer className="page-footer">
+        <p>Created by - Natali Koifman</p>
+      </footer>
     </div>
   );
 }
