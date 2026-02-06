@@ -262,7 +262,7 @@ function SearchPage() {
                     })}
                   </tr>
                   <tr>
-                    <td>תשואה ממוצעת 3 שנים</td>
+                    <td>תשואה 3 שנים</td>
                     {selectedFunds.map(fund => {
                       const best = getBestValue(selectedFunds, 'yieldTrailing3Years');
                       const isBest = fund.yieldTrailing3Years === best;
@@ -274,7 +274,7 @@ function SearchPage() {
                     })}
                   </tr>
                   <tr>
-                    <td>תשואה ממוצעת 5 שנים</td>
+                    <td>תשואה 5 שנים</td>
                     {selectedFunds.map(fund => {
                       const best = getBestValue(selectedFunds, 'yieldTrailing5Years');
                       const isBest = fund.yieldTrailing5Years === best;
@@ -375,13 +375,13 @@ function SearchPage() {
                           </span>
                         </div>
                         <div className="stat">
-                          <span className="stat-label">תשואה ממוצעת 3 שנים</span>
+                          <span className="stat-label">תשואה 3 שנים</span>
                           <span className={`stat-value ${fund.yieldTrailing3Years > 0 ? 'positive' : 'negative'}`}>
                             {formatPercent(fund.yieldTrailing3Years)}
                           </span>
                         </div>
                         <div className="stat">
-                          <span className="stat-label">תשואה ממוצעת 5 שנים</span>
+                          <span className="stat-label">תשואה 5 שנים</span>
                           <span className={`stat-value ${fund.yieldTrailing5Years > 0 ? 'positive' : 'negative'}`}>
                             {formatPercent(fund.yieldTrailing5Years)}
                           </span>
