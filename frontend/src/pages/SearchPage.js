@@ -262,25 +262,25 @@ function SearchPage() {
                     })}
                   </tr>
                   <tr>
-                    <td>תשואה 3 שנים</td>
+                    <td>ממוצעת שנתית 3 שנים</td>
                     {selectedFunds.map(fund => {
-                      const best = getBestValue(selectedFunds, 'yieldTrailing3Years');
-                      const isBest = fund.yieldTrailing3Years === best;
+                      const best = getBestValue(selectedFunds, 'avgAnnualYield3Years');
+                      const isBest = fund.avgAnnualYield3Years === best;
                       return (
                         <td key={fund.id} className={isBest ? 'best-value' : ''}>
-                          {formatPercent(fund.yieldTrailing3Years)}
+                          {formatPercent(fund.avgAnnualYield3Years)}
                         </td>
                       );
                     })}
                   </tr>
                   <tr>
-                    <td>תשואה 5 שנים</td>
+                    <td>ממוצעת שנתית 5 שנים</td>
                     {selectedFunds.map(fund => {
-                      const best = getBestValue(selectedFunds, 'yieldTrailing5Years');
-                      const isBest = fund.yieldTrailing5Years === best;
+                      const best = getBestValue(selectedFunds, 'avgAnnualYield5Years');
+                      const isBest = fund.avgAnnualYield5Years === best;
                       return (
                         <td key={fund.id} className={isBest ? 'best-value' : ''}>
-                          {formatPercent(fund.yieldTrailing5Years)}
+                          {formatPercent(fund.avgAnnualYield5Years)}
                         </td>
                       );
                     })}
@@ -375,15 +375,15 @@ function SearchPage() {
                           </span>
                         </div>
                         <div className="stat">
-                          <span className="stat-label">תשואה 3 שנים</span>
-                          <span className={`stat-value ${fund.yieldTrailing3Years > 0 ? 'positive' : 'negative'}`}>
-                            {formatPercent(fund.yieldTrailing3Years)}
+                          <span className="stat-label">ממוצעת שנתית 3 שנים</span>
+                          <span className={`stat-value ${fund.avgAnnualYield3Years > 0 ? 'positive' : 'negative'}`}>
+                            {formatPercent(fund.avgAnnualYield3Years)}
                           </span>
                         </div>
                         <div className="stat">
-                          <span className="stat-label">תשואה 5 שנים</span>
-                          <span className={`stat-value ${fund.yieldTrailing5Years > 0 ? 'positive' : 'negative'}`}>
-                            {formatPercent(fund.yieldTrailing5Years)}
+                          <span className="stat-label">ממוצעת שנתית 5 שנים</span>
+                          <span className={`stat-value ${fund.avgAnnualYield5Years > 0 ? 'positive' : 'negative'}`}>
+                            {formatPercent(fund.avgAnnualYield5Years)}
                           </span>
                         </div>
                         <div className="stat">
