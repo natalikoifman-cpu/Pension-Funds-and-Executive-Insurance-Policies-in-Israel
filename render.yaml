@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: pension-funds-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: build
+    envVars:
+      - key: REACT_APP_API_URL
+        value: https://pension-funds-api-cyekachfb9efa6ej.canadacentral-01.azurewebsites.net/api
+      - key: NODE_VERSION
+        value: "20"
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
