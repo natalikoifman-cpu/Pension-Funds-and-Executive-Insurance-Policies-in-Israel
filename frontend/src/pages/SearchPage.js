@@ -262,6 +262,42 @@ function SearchPage() {
                     })}
                   </tr>
                   <tr>
+                    <td>תשואה ממוצעת 3 שנים</td>
+                    {selectedFunds.map(fund => {
+                      const best = getBestValue(selectedFunds, 'yieldTrailing3Years');
+                      const isBest = fund.yieldTrailing3Years === best;
+                      return (
+                        <td key={fund.id} className={isBest ? 'best-value' : ''}>
+                          {formatPercent(fund.yieldTrailing3Years)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  <tr>
+                    <td>תשואה ממוצעת 5 שנים</td>
+                    {selectedFunds.map(fund => {
+                      const best = getBestValue(selectedFunds, 'yieldTrailing5Years');
+                      const isBest = fund.yieldTrailing5Years === best;
+                      return (
+                        <td key={fund.id} className={isBest ? 'best-value' : ''}>
+                          {formatPercent(fund.yieldTrailing5Years)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  <tr>
+                    <td>מדד שארפ</td>
+                    {selectedFunds.map(fund => {
+                      const best = getBestValue(selectedFunds, 'sharpeRatio');
+                      const isBest = fund.sharpeRatio === best;
+                      return (
+                        <td key={fund.id} className={isBest ? 'best-value' : ''}>
+                          {formatNumber(fund.sharpeRatio)}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                  <tr>
                     <td>סטיית תקן</td>
                     {selectedFunds.map(fund => {
                       const best = getBestValue(selectedFunds, 'standardDeviation', true);
@@ -290,7 +326,8 @@ function SearchPage() {
             </div>
             <div className="comparison-footer">
               <p className="comparison-note">
-                <strong>הערה:</strong> סטיית תקן מודדת את רמת התנודתיות של התשואות - ככל שהיא נמוכה יותר, כך ההשקעה יציבה יותר.
+                <strong>הערה:</strong> מדד שארפ מודד תשואה מתואמת סיכון - ככל שהוא גבוה יותר, כך הקרן מניבה תשואה טובה יותר ביחס לסיכון.
+                סטיית תקן מודדת את רמת התנודתיות - ככל שהיא נמוכה יותר, כך ההשקעה יציבה יותר.
               </p>
             </div>
           </div>
@@ -338,8 +375,20 @@ function SearchPage() {
                           </span>
                         </div>
                         <div className="stat">
-                          <span className="stat-label">חשיפה למניות</span>
-                          <span className="stat-value">{formatPercent(fund.stockMarketExposure)}</span>
+                          <span className="stat-label">תשואה ממוצעת 3 שנים</span>
+                          <span className={`stat-value ${fund.yieldTrailing3Years > 0 ? 'positive' : 'negative'}`}>
+                            {formatPercent(fund.yieldTrailing3Years)}
+                          </span>
+                        </div>
+                        <div className="stat">
+                          <span className="stat-label">תשואה ממוצעת 5 שנים</span>
+                          <span className={`stat-value ${fund.yieldTrailing5Years > 0 ? 'positive' : 'negative'}`}>
+                            {formatPercent(fund.yieldTrailing5Years)}
+                          </span>
+                        </div>
+                        <div className="stat">
+                          <span className="stat-label">מדד שארפ</span>
+                          <span className="stat-value">{formatNumber(fund.sharpeRatio)}</span>
                         </div>
                       </div>
 
