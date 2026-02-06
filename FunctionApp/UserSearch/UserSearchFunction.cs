@@ -43,7 +43,7 @@ public class UserSearchFunction
 
     [Function("Search")]
     public async Task<HttpResponseData> Run(
-        [HttpTrigger(AuthorizationLevel.Anonymous, "get")] HttpRequestData req)
+        [HttpTrigger(AuthorizationLevel.Anonymous, "get", "options")] HttpRequestData req)
     {
         _logger.LogInformation("Search function processing request - calling external API");
 
