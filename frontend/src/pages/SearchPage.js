@@ -7,8 +7,10 @@ function SearchPage() {
   const [filters, setFilters] = useState({
     query: '',
     fundType: 'Pension',
+    classification: 'all',
     sortBy: 'YEAR_TO_DATE_YIELD',
-    maxStockExposure: ''
+    maxStockExposure: '',
+    establishmentPeriod: 'all'
   });
   const [results, setResults] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -28,6 +30,16 @@ function SearchPage() {
     setFilters(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
+    }));
+  };
+
+  const handleFundTypeChange = (e) => {
+    const { value } = e.target;
+    setFilters(prev => ({
+      ...prev,
+      fundType: value,
+      classification: 'all',
+      establishmentPeriod: 'all'
     }));
   };
 
@@ -54,6 +66,12 @@ function SearchPage() {
     if (filters.fundType) params.append('fundType', filters.fundType);
     if (filters.sortBy) params.append('sortBy', filters.sortBy);
     if (filters.maxStockExposure) params.append('maxStockExposure', filters.maxStockExposure);
+    if (filters.classification && filters.classification !== 'all') {
+      params.append('classification', filters.classification);
+    }
+    if (filters.fundType === 'Executive' && filters.establishmentPeriod && filters.establishmentPeriod !== 'all') {
+      params.append('classification', filters.establishmentPeriod);
+    }
     params.append('sortDesc', 'true');
     params.append('pageNumber', pageNum);
     params.append('pageSize', pageSize);
@@ -82,8 +100,10 @@ function SearchPage() {
     setFilters({
       query: '',
       fundType: 'Pension',
+      classification: 'all',
       sortBy: 'YEAR_TO_DATE_YIELD',
-      maxStockExposure: ''
+      maxStockExposure: '',
+      establishmentPeriod: 'all'
     });
     setResults(null);
     setSelectedFunds([]);
@@ -133,14 +153,14 @@ function SearchPage() {
       <form className="search-form" onSubmit={handleSearch}>
         <div className="form-row">
           <div className="form-group">
-            <label htmlFor="query">שם קרן או חברה מנהלת</label>
+            <label htmlFor="query">שם קרן, חברה מנהלת או מספר קרן</label>
             <input
               type="text"
               id="query"
               name="query"
               value={filters.query}
               onChange={handleInputChange}
-              placeholder="חיפוש חופשי..."
+              placeholder="חיפוש לפי שם, חברה או מספר..."
             />
           </div>
 
@@ -150,7 +170,7 @@ function SearchPage() {
               id="fundType"
               name="fundType"
               value={filters.fundType}
-              onChange={handleInputChange}
+              onChange={handleFundTypeChange}
             >
               <option value="Pension">קרן פנסיה</option>
               <option value="Executive">ביטוח מנהלים</option>
@@ -168,10 +188,45 @@ function SearchPage() {
               onChange={handleInputChange}
             >
               <option value="YEAR_TO_DATE_YIELD">תשואה שנתית</option>
-              <option value="YIELD_TRAILING_3_YRS">תשואה 3 שנים</option>
-              <option value="YIELD_TRAILING_5_YRS">תשואה 5 שנים</option>
+              <option value="AVG_ANNUAL_YIELD_TRAILING_3YRS">ממוצעת שנתית 3 שנים</option>
+              <option value="AVG_ANNUAL_YIELD_TRAILING_5YRS">ממוצעת שנתית 5 שנים</option>
+              <option value="SHARPE_RATIO">מדד שארפ</option>
+              <option value="AVG_ANNUAL_MANAGEMENT_FEE">דמי ניהול</option>
             </select>
           </div>
+
+          {filters.fundType === 'Pension' && (
+            <div className="form-group">
+              <label htmlFor="classification">סוג קרן</label>
+              <select
+                id="classification"
+                name="classification"
+                value={filters.classification}
+                onChange={handleInputChange}
+              >
+                <option value="all">כל הקרנות</option>
+                <option value="קרנות כלליות">קרנות כלליות</option>
+                <option value="קרנות חדשות">קרנות חדשות</option>
+              </select>
+            </div>
+          )}
+
+          {filters.fundType === 'Executive' && (
+            <div className="form-group">
+              <label htmlFor="establishmentPeriod">תקופת הקמה</label>
+              <select
+                id="establishmentPeriod"
+                name="establishmentPeriod"
+                value={filters.establishmentPeriod}
+                onChange={handleInputChange}
+              >
+                <option value="all">כל תקופות ההקמה</option>
+                <option value="פוליסות שהונפקו משנת 2004 ואילך">פוליסות שהונפקו משנת 2004 ואילך</option>
+                <option value="פוליסות שהונפקו בשנים 1992 - 2003">פוליסות שהונפקו בשנים 1992 - 2003</option>
+                <option value="פוליסות שהונפקו בשנים 1990 - 1991">פוליסות שהונפקו בשנים 1990 - 1991</option>
+              </select>
+            </div>
+          )}
 
           <div className="form-group">
             <label htmlFor="maxStockExposure">חשיפה מקס' למניות (%)</label>
@@ -231,6 +286,12 @@ function SearchPage() {
                   </tr>
                 </thead>
                 <tbody>
+                  <tr>
+                    <td>מספר קרן</td>
+                    {selectedFunds.map(fund => (
+                      <td key={fund.id}>{fund.id}</td>
+                    ))}
+                  </tr>
                   <tr>
                     <td>חברה מנהלת</td>
                     {selectedFunds.map(fund => (
@@ -362,7 +423,10 @@ function SearchPage() {
                         </span>
                       </div>
 
-                      <div className="fund-company">{fund.managingCompany}</div>
+                      <div className="fund-meta">
+                        <span className="fund-number">מספר: {fund.id}</span>
+                        <span className="fund-company">{fund.managingCompany}</span>
+                      </div>
                       {fund.classification && (
                         <div className="fund-classification">{fund.classification}</div>
                       )}

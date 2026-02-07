@@ -189,6 +189,8 @@ public class UserSearchFunction
             "ANNUAL_RETURN" or "ANNUALRETURN" or "YEAR_TO_DATE_YIELD" => "YEAR_TO_DATE_YIELD",
             "RETURN_3_YEARS" or "RETURN3YEARS" or "YIELD_TRAILING_3_YRS" => "YIELD_TRAILING_3_YRS",
             "RETURN_5_YEARS" or "RETURN5YEARS" or "YIELD_TRAILING_5_YRS" => "YIELD_TRAILING_5_YRS",
+            "AVG_ANNUAL_YIELD_TRAILING_3YRS" => "AVG_ANNUAL_YIELD_TRAILING_3YRS",
+            "AVG_ANNUAL_YIELD_TRAILING_5YRS" => "AVG_ANNUAL_YIELD_TRAILING_5YRS",
             "MANAGEMENT_FEE" or "MANAGEMENTFEE" or "AVG_ANNUAL_MANAGEMENT_FEE" => "AVG_ANNUAL_MANAGEMENT_FEE",
             "DEPOSIT_FEE" or "DEPOSITFEE" or "AVG_DEPOSIT_FEE" => "AVG_DEPOSIT_FEE",
             "SHARPE" or "SHARPE_RATIO" => "SHARPE_RATIO",
@@ -240,6 +242,11 @@ public class UserSearchFunction
         if (minStockExposure.HasValue)
         {
             conditions.Add($"{{\"STOCK_MARKET_EXPOSURE_PERCENT\":{{\"$gte\":{minStockExposure.Value}}}}}");
+        }
+
+        if (!string.IsNullOrEmpty(classification))
+        {
+            conditions.Add($"{{\"FUND_CLASSIFICATION\":{{\"$eq\":\"{classification}\"}}}}");
         }
 
         // Add existing complex filters if provided

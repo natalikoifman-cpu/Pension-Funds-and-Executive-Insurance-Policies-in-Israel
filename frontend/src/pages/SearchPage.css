@@ -232,10 +232,22 @@
   color: #7b1fa2;
 }
 
+.fund-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
+.fund-number {
+  color: #1976d2;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .fund-company {
   color: #666;
   font-size: 14px;
-  margin-bottom: 8px;
 }
 
 .fund-classification {
