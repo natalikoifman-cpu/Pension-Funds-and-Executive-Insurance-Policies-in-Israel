@@ -1,4 +1,4 @@
-/* Design System - DocumentInsight.ai inspired */
+/* Design System - Bordered/Frame style */
 
 :root {
   --bg-cream: #FDFBF7;
@@ -6,19 +6,20 @@
   --text-dark: #1a1a1a;
   --text-muted: #6b6b6b;
   --text-light: #999999;
-  --accent-yellow: #E5A832;
-  --accent-yellow-hover: #D49A28;
-  --accent-yellow-light: rgba(229, 168, 50, 0.1);
+  --accent-blue: #2563EB;
+  --accent-blue-hover: #1d4ed8;
+  --accent-blue-light: rgba(37, 99, 235, 0.08);
   --badge-bg: #E8EDF2;
   --badge-text: #4a5568;
-  --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  --card-shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.12);
-  --border-color: #e8e8e8;
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  --card-shadow-hover: 0 4px 16px rgba(37, 99, 235, 0.1);
+  --border-color: #e0e0e0;
+  --border-dark: #333333;
   --border-radius: 12px;
   --border-radius-lg: 16px;
   --border-radius-sm: 8px;
   --positive: #16a34a;
   --negative: #dc2626;
-  --focus-ring: 0 0 0 3px rgba(229, 168, 50, 0.25);
+  --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.15);
   --transition: 0.2s ease;
 }

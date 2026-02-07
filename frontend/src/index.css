@@ -25,7 +25,7 @@ body {
 /* Base form elements */
 input, select {
   padding: 12px 16px;
-  border: 1px solid var(--border-color);
+  border: 1px solid #ddd;
   border-radius: var(--border-radius-sm);
   font-size: 15px;
   font-family: inherit;
@@ -37,7 +37,7 @@ input, select {
 
 input:focus, select:focus {
   outline: none;
-  border-color: var(--accent-yellow);
+  border-color: var(--accent-blue);
   box-shadow: var(--focus-ring);
 }
 

@@ -32,7 +32,7 @@
 }
 
 .navbar-logo:hover {
-  color: var(--accent-yellow);
+  color: var(--accent-blue);
 }
 
 .navbar-nav {
@@ -45,6 +45,7 @@
   text-decoration: none;
   padding: 8px 16px;
   border-radius: var(--border-radius-sm);
+  border: 1px solid transparent;
   font-weight: 500;
   font-size: 15px;
   transition: all var(--transition);
@@ -52,12 +53,12 @@
 
 .nav-link:hover {
   color: var(--text-dark);
-  background: var(--badge-bg);
 }
 
 .nav-link.active {
   color: var(--text-dark);
-  background: var(--accent-yellow-light);
+  border-color: var(--text-dark);
+  font-weight: 600;
 }
 
 /* Main content */

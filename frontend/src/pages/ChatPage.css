@@ -1,4 +1,4 @@
-/* Chat Page - DocumentInsight.ai inspired design */
+/* Chat Page - Bordered/Frame style */
 
 .chat-page {
   max-width: 800px;
@@ -35,8 +35,8 @@
   display: flex;
   flex-direction: column;
   background: var(--bg-white);
+  border: 1px solid var(--border-color);
   border-radius: var(--border-radius-lg);
-  box-shadow: var(--card-shadow);
   overflow: hidden;
   min-height: 0;
 }
@@ -123,7 +123,7 @@
 }
 
 .mini-fund-card:hover {
-  border-color: var(--accent-yellow);
+  border-color: var(--accent-blue);
 }
 
 .mini-fund-name {
@@ -142,7 +142,8 @@
 }
 
 .mini-fund-details span {
-  background: var(--badge-bg);
+  background: transparent;
+  border: 1px solid var(--border-color);
   padding: 2px 10px;
   border-radius: 4px;
 }
@@ -156,7 +157,7 @@
 }
 
 .suggested-question-btn {
-  background: var(--bg-white);
+  background: transparent;
   color: var(--text-dark);
   border: 1px solid var(--border-color);
   padding: 8px 16px;
@@ -168,9 +169,8 @@
 }
 
 .suggested-question-btn:hover:not(:disabled) {
-  background: var(--accent-yellow);
-  color: var(--text-dark);
-  border-color: var(--accent-yellow);
+  border-color: var(--accent-blue);
+  color: var(--accent-blue);
 }
 
 .suggested-question-btn:disabled {
@@ -221,7 +221,6 @@
   display: flex;
   gap: 12px;
   padding: 16px 24px;
-  background: var(--bg-cream);
   border-top: 1px solid var(--border-color);
 }
 
@@ -229,19 +228,19 @@
   flex: 1;
   border-radius: 24px;
   padding: 12px 20px;
-  border: 1px solid var(--border-color);
+  border: 1px solid #ddd;
   font-size: 15px;
 }
 
 .chat-input-form input:focus {
-  border-color: var(--accent-yellow);
+  border-color: var(--accent-blue);
   box-shadow: var(--focus-ring);
 }
 
 .chat-input-form button {
-  background: var(--accent-yellow);
-  color: var(--text-dark);
-  border: none;
+  background: transparent;
+  color: var(--accent-blue);
+  border: 2px solid var(--accent-blue);
   padding: 12px 28px;
   border-radius: 24px;
   font-size: 15px;
@@ -252,7 +251,8 @@
 }
 
 .chat-input-form button:hover:not(:disabled) {
-  background: var(--accent-yellow-hover);
+  background: var(--accent-blue);
+  color: #ffffff;
 }
 
 .chat-input-form button:disabled {
