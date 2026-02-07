@@ -211,35 +211,6 @@ function SearchPage() {
             </div>
           )}
 
-          {filters.fundType === 'Executive' && (
-            <div className="form-group">
-              <label htmlFor="establishmentPeriod">תקופת הקמה</label>
-              <select
-                id="establishmentPeriod"
-                name="establishmentPeriod"
-                value={filters.establishmentPeriod}
-                onChange={handleInputChange}
-              >
-                <option value="all">כל תקופות ההקמה</option>
-                <option value="פוליסות שהונפקו משנת 2004 ואילך">פוליסות שהונפקו משנת 2004 ואילך</option>
-                <option value="פוליסות שהונפקו בשנים 1992 - 2003">פוליסות שהונפקו בשנים 1992 - 2003</option>
-                <option value="פוליסות שהונפקו בשנים 1990 - 1991">פוליסות שהונפקו בשנים 1990 - 1991</option>
-              </select>
-            </div>
-          )}
-
-          <div className="form-group">
-            <label htmlFor="maxStockExposure">חשיפה מקס' למניות (%)</label>
-            <input
-              type="number"
-              id="maxStockExposure"
-              name="maxStockExposure"
-              value={filters.maxStockExposure}
-              onChange={handleInputChange}
-              placeholder="לדוגמה: 50"
-              step="5"
-            />
-          </div>
         </div>
 
         <div className="form-actions">
