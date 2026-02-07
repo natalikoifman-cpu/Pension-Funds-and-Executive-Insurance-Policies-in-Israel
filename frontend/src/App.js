@@ -9,10 +9,12 @@ function App() {
 
   return (
     <div className="app">
-      <header className="header">
-        <div className="header-content">
-          <h1 className="logo">קרנות פנסיה וביטוחי מנהלים</h1>
-          <nav className="nav">
+      <header className="navbar">
+        <div className="navbar-content">
+          <Link to="/" className="navbar-logo">
+            קרנות פנסיה וביטוחי מנהלים
+          </Link>
+          <nav className="navbar-nav">
             <Link
               to="/"
               className={`nav-link ${location.pathname === '/' ? 'active' : ''}`}
@@ -29,14 +31,14 @@ function App() {
         </div>
       </header>
 
-      <main className="main">
+      <main className="main-content">
         <Routes>
           <Route path="/" element={<SearchPage />} />
           <Route path="/chat" element={<ChatPage />} />
         </Routes>
       </main>
 
-      <footer className="footer">
+      <footer className="site-footer">
         <p>מאת: קויפמן-לרנר | מחובר למאגר המידע הממשלתי</p>
       </footer>
     </div>
