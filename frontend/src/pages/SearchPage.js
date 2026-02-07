@@ -494,6 +494,9 @@ function SearchPage() {
           <p>שאל שאלות בשפה חופשית וקבל תשובות מהנתונים</p>
         </Link>
       </div>
+      <footer className="page-footer">
+        <p>Created by - Natali Koifman</p>
+      </footer>
     </div>
   );
 }
