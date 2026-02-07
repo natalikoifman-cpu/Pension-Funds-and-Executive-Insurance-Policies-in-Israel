@@ -1,4 +1,4 @@
-/* Search Page - DocumentInsight.ai inspired design */
+/* Search Page - Bordered/Frame style */
 
 .search-page {
   max-width: 1200px;
@@ -34,10 +34,11 @@
 /* Feature Badge */
 .feature-badge {
   display: inline-block;
-  background: var(--badge-bg);
-  color: var(--badge-text);
+  background: var(--bg-white);
+  color: var(--text-muted);
   padding: 8px 18px;
   border-radius: 24px;
+  border: 1px solid var(--border-color);
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 24px;
@@ -47,8 +48,8 @@
 /* Search Card */
 .search-card {
   background: var(--bg-white);
+  border: 1px solid var(--border-color);
   border-radius: var(--border-radius-lg);
-  box-shadow: var(--card-shadow);
   padding: 32px;
   max-width: 900px;
   margin: 0 auto 32px;
@@ -78,18 +79,18 @@
   flex-wrap: wrap;
 }
 
-/* CTA Button (yellow) */
+/* Search/CTA Button - bordered blue */
 .btn-cta {
-  background: var(--accent-yellow);
-  color: var(--text-dark);
+  background: transparent;
+  color: var(--accent-blue);
+  border: 2px solid var(--accent-blue);
   padding: 14px 32px;
   font-weight: 600;
 }
 
 .btn-cta:hover:not(:disabled) {
-  background: var(--accent-yellow-hover);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(229, 168, 50, 0.3);
+  background: var(--accent-blue);
+  color: #ffffff;
 }
 
 .btn-cta:disabled {
@@ -97,42 +98,42 @@
   cursor: not-allowed;
 }
 
-/* Outline Button */
+/* Clear/Outline Button */
 .btn-outline {
   background: transparent;
   color: var(--text-muted);
-  border: 1px solid var(--border-color);
+  border: 1px solid #ccc;
   padding: 14px 28px;
 }
 
 .btn-outline:hover {
-  background: var(--badge-bg);
+  border-color: #999;
   color: var(--text-dark);
-  border-color: #ccc;
 }
 
-/* Compare Button */
+/* Compare Button - bordered dark */
 .btn-compare {
-  background: var(--text-dark);
-  color: white;
+  background: transparent;
+  color: var(--text-dark);
+  border: 2px solid var(--text-dark);
   padding: 14px 28px;
 }
 
 .btn-compare:hover {
-  background: #333;
+  background: var(--text-dark);
+  color: #ffffff;
 }
 
 /* Page Button */
 .btn-page {
-  background: var(--bg-white);
+  background: transparent;
   color: var(--text-dark);
   border: 1px solid var(--border-color);
   padding: 10px 24px;
 }
 
 .btn-page:hover:not(:disabled) {
-  background: var(--badge-bg);
-  border-color: #ccc;
+  border-color: var(--text-dark);
 }
 
 .btn-page:disabled {
@@ -156,8 +157,8 @@
 .results-section {
   background: var(--bg-white);
   padding: 32px;
+  border: 1px solid var(--border-color);
   border-radius: var(--border-radius-lg);
-  box-shadow: var(--card-shadow);
   margin-bottom: 48px;
 }
 
@@ -191,8 +192,8 @@
 }
 
 .fund-card {
-  background: var(--bg-cream);
-  border: 2px solid transparent;
+  background: var(--bg-white);
+  border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   padding: 24px;
   transition: all var(--transition);
@@ -201,14 +202,13 @@
 }
 
 .fund-card:hover {
-  border-color: var(--accent-yellow);
+  border-color: var(--accent-blue);
   box-shadow: var(--card-shadow-hover);
-  transform: translateY(-2px);
 }
 
 .fund-card.selected {
-  border-color: var(--accent-yellow);
-  background: var(--accent-yellow-light);
+  border-color: var(--accent-blue);
+  background: var(--accent-blue-light);
 }
 
 .fund-card-header {
@@ -233,16 +233,19 @@
   border-radius: 20px;
   font-weight: 600;
   white-space: nowrap;
+  border: 1px solid;
 }
 
 .fund-type-badge.pension {
-  background: var(--badge-bg);
+  background: transparent;
   color: var(--badge-text);
+  border-color: var(--border-color);
 }
 
 .fund-type-badge.executive {
-  background: #F3E8FF;
+  background: transparent;
   color: #6B21A8;
+  border-color: #D8B4FE;
 }
 
 .fund-meta {
@@ -253,7 +256,7 @@
 }
 
 .fund-number {
-  color: var(--accent-yellow-hover);
+  color: var(--accent-blue);
   font-size: 13px;
   font-weight: 600;
 }
@@ -280,8 +283,9 @@
   flex-direction: column;
   text-align: center;
   padding: 8px 4px;
-  background: var(--bg-white);
+  background: var(--bg-cream);
   border-radius: var(--border-radius-sm);
+  border: 1px solid #f0f0f0;
 }
 
 .stat-label {
@@ -310,8 +314,9 @@
   position: absolute;
   bottom: 12px;
   left: 12px;
-  background: var(--accent-yellow);
-  color: var(--text-dark);
+  background: transparent;
+  color: var(--accent-blue);
+  border: 1px solid var(--accent-blue);
   padding: 4px 14px;
   border-radius: 20px;
   font-size: 12px;
@@ -363,16 +368,15 @@
 
 .feature-card {
   background: var(--bg-white);
+  border: 1px solid var(--border-color);
   border-radius: var(--border-radius);
   padding: 32px 24px;
   text-align: center;
-  box-shadow: var(--card-shadow);
-  transition: all var(--transition);
+  transition: border-color var(--transition);
 }
 
 .feature-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--card-shadow-hover);
+  border-color: var(--accent-blue);
 }
 
 .feature-card-link {
@@ -418,6 +422,7 @@
 
 .modal-card {
   background: var(--bg-white);
+  border: 1px solid var(--border-color);
   border-radius: var(--border-radius-lg);
   max-width: 900px;
   width: 100%;
@@ -425,7 +430,7 @@
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
 }
 
 .modal-header {
@@ -445,12 +450,12 @@
 
 .modal-close {
   background: none;
-  border: none;
-  font-size: 28px;
+  border: 1px solid var(--border-color);
+  font-size: 24px;
   cursor: pointer;
   color: var(--text-muted);
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -459,7 +464,7 @@
 }
 
 .modal-close:hover {
-  background: var(--badge-bg);
+  border-color: var(--text-dark);
   color: var(--text-dark);
 }
 
@@ -483,30 +488,25 @@
 }
 
 .comparison-table th {
-  background: var(--text-dark);
-  color: white;
+  background: var(--bg-cream);
+  color: var(--text-dark);
   font-weight: 600;
   font-size: 14px;
+  border-bottom: 2px solid var(--border-dark);
 }
 
 .comparison-table th:first-child {
   text-align: right;
-  background: #111;
 }
 
 .comparison-table td:first-child {
   text-align: right;
   font-weight: 600;
-  background: #FAFAFA;
   color: var(--text-muted);
 }
 
 .comparison-table tr:hover td {
-  background: #F8F8F8;
-}
-
-.comparison-table tr:hover td:first-child {
-  background: #F0F0F0;
+  background: #FAFAFA;
 }
 
 .comparison-table .best-value {
@@ -517,7 +517,6 @@
 
 .modal-footer {
   padding: 16px 32px;
-  background: #FAFAFA;
   border-top: 1px solid var(--border-color);
 }
 
