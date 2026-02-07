@@ -3,7 +3,7 @@ name: Deploy Azure Functions
 on:
   workflow_run:
     workflows:
-      - Build and deploy dotnet core app to Azure Function App - pension-funds-api
+      - CI
     types:
       - completed
   workflow_dispatch:
