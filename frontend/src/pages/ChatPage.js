@@ -3,15 +3,15 @@ import './ChatPage.css';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 
+const DISCLAIMER = '\n\n---\n\u26a0\ufe0f אתר זה אינו מספק ייעוץ פנסיוני.\nהאתר מציג נתונים מאתר משרד האוצר בלבד.\nלקבלת ייעוץ פנסיוני יש לפנות לבעל רישיון מטעם משרד האוצר.';
+
 function ChatPage() {
   const [messages, setMessages] = useState([
     {
       type: 'bot',
-      content: 'שלום! אני כאן לעזור לך למצוא את קרן הפנסיה או ביטוח המנהלים המתאים לך. אתה יכול לשאול אותי על השוואות בין קרנות, תשואות, דמי ניהול, או לבקש המלצות מותאמות אישית.',
+      content: 'שלום! אני כאן לעזור לך להציג ולהשוות נתונים על קרנות פנסיה וביטוחי מנהלים. אתה יכול לשאול אותי על השוואות בין קרנות ותשואות.',
       suggestedQuestions: [
-        'השווה בין קרנות פנסיה',
-        'המלץ לי על קרן פנסיה',
-        'מהם דמי הניהול הממוצעים?',
+        'השוואה בין קרנות פנסיה',
         'איזו קרן מניבה את התשואה הגבוהה ביותר?'
       ]
     }
@@ -55,7 +55,7 @@ function ChatPage() {
 
       setMessages(prev => [...prev, {
         type: 'bot',
-        content: data.message,
+        content: data.message + DISCLAIMER,
         suggestedFunds: data.suggestedFunds,
         suggestedQuestions: data.suggestedQuestions
       }]);
@@ -92,8 +92,8 @@ function ChatPage() {
   return (
     <div className="chat-page">
       <div className="chat-header">
-        <h2>צ'אט עם היועץ הדיגיטלי</h2>
-        <p>שאל שאלות בשפה חופשית וקבל תשובות מותאמות אישית</p>
+        <h2>צ'אט</h2>
+        <p>שאל שאלות בשפה חופשית וקבל נתונים מאתר משרד האוצר</p>
       </div>
 
       <div className="chat-container">
@@ -101,11 +101,11 @@ function ChatPage() {
           {messages.map((message, index) => (
             <div key={index} className={`message ${message.type}`}>
               <div className={`message-bubble ${message.isError ? 'error' : ''}`}>
-                <p>{message.content}</p>
+                <p style={{ whiteSpace: 'pre-line' }}>{message.content}</p>
 
                 {message.suggestedFunds && message.suggestedFunds.length > 0 && (
                   <div className="suggested-funds">
-                    <h4>קרנות רלוונטיות:</h4>
+                    <h4>נתוני קרנות:</h4>
                     <div className="funds-list">
                       {message.suggestedFunds.map((fund) => (
                         <div key={fund.id} className="mini-fund-card">
