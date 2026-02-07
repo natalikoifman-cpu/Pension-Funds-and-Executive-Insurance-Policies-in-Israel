@@ -1,10 +1,17 @@
 name: Deploy Azure Functions
 
 on:
-  push:
+  workflow_run:
+    workflows:
+      - CI
+    types:
+      - completed
     branches:
       - main
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 env:
   AZURE_FUNCTIONAPP_NAME: 'pension-funds-api-cyekachfb9efa6ej'
@@ -14,6 +21,7 @@ env:
 
 jobs:
   build-and-deploy:
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main')
     runs-on: ubuntu-latest
 
     steps:
