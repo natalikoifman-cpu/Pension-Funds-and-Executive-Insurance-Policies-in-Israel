@@ -4,82 +4,93 @@
   flex-direction: column;
 }
 
-/* Header */
-.header {
-  background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
-  color: white;
-  padding: 16px 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+/* Navbar */
+.navbar {
+  background: var(--bg-white);
+  border-bottom: 1px solid var(--border-color);
+  padding: 0 32px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
-.header-content {
+.navbar-content {
   max-width: 1200px;
   margin: 0 auto;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  height: 64px;
 }
 
-.logo {
-  font-size: 24px;
+.navbar-logo {
+  font-size: 18px;
   font-weight: 700;
-  margin: 0;
+  color: var(--text-dark);
+  text-decoration: none;
+  transition: color var(--transition);
 }
 
-.nav {
+.navbar-logo:hover {
+  color: var(--accent-yellow);
+}
+
+.navbar-nav {
   display: flex;
-  gap: 8px;
+  gap: 4px;
 }
 
 .nav-link {
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--text-muted);
   text-decoration: none;
-  padding: 10px 20px;
-  border-radius: 8px;
+  padding: 8px 16px;
+  border-radius: var(--border-radius-sm);
   font-weight: 500;
-  transition: all 0.2s ease;
+  font-size: 15px;
+  transition: all var(--transition);
 }
 
 .nav-link:hover {
-  background-color: rgba(255, 255, 255, 0.15);
-  color: white;
+  color: var(--text-dark);
+  background: var(--badge-bg);
 }
 
 .nav-link.active {
-  background-color: rgba(255, 255, 255, 0.25);
-  color: white;
+  color: var(--text-dark);
+  background: var(--accent-yellow-light);
 }
 
 /* Main content */
-.main {
+.main-content {
   flex: 1;
-  padding: 32px 24px;
-  max-width: 1200px;
-  margin: 0 auto;
+  padding: 0;
   width: 100%;
 }
 
 /* Footer */
-.footer {
-  background-color: #2c3e50;
-  color: rgba(255, 255, 255, 0.7);
+.site-footer {
+  background: var(--bg-white);
+  border-top: 1px solid var(--border-color);
   text-align: center;
-  padding: 20px;
+  padding: 24px 20px;
   font-size: 14px;
+  color: var(--text-muted);
 }
 
 /* Responsive */
 @media (max-width: 768px) {
-  .header-content {
+  .navbar {
+    padding: 0 16px;
+  }
+
+  .navbar-content {
+    height: auto;
     flex-direction: column;
-    gap: 16px;
+    gap: 12px;
+    padding: 12px 0;
   }
 
-  .logo {
-    font-size: 20px;
-  }
-
-  .main {
-    padding: 20px 16px;
+  .navbar-logo {
+    font-size: 16px;
   }
 }

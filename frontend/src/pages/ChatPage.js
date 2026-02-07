@@ -94,9 +94,10 @@ function ChatPage() {
 
   return (
     <div className="chat-page">
-      <div className="chat-header">
-        <h2>הסוכן החכם שלך</h2>
-        <p>שאל שאלות בשפה חופשית וקבל נתונים מאתר משרד האוצר</p>
+      <div className="chat-hero">
+        <div className="feature-badge">סוכן חכם</div>
+        <h2 className="chat-title">הסוכן החכם שלך</h2>
+        <p className="chat-subtitle">שאל שאלות בשפה חופשית וקבל נתונים מאתר משרד האוצר</p>
       </div>
 
       <div className="chat-container">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import './SearchPage.css';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
@@ -145,106 +146,115 @@ function SearchPage() {
 
   return (
     <div className="search-page">
-      <div className="search-header">
-        <h1>השוואת קרנות פנסיה וביטוחי מנהלים</h1>
-        <p>חפש, סנן והשווה בין מאות קרנות פנסיה וביטוחי מנהלים בישראל</p>
-      </div>
+      {/* Hero Section */}
+      <section className="hero-section">
+        <div className="feature-badge">נתונים רשמיים ממשרד האוצר</div>
+        <h1 className="hero-title">
+          השוואת קרנות פנסיה<br />וביטוחי מנהלים
+        </h1>
+        <p className="hero-subtitle">
+          חפש, סנן והשווה בין מאות קרנות פנסיה וביטוחי מנהלים בישראל.
+          נתונים רשמיים ממשרד האוצר.
+        </p>
+      </section>
 
-      <form className="search-form" onSubmit={handleSearch}>
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="query">שם קרן, חברה מנהלת או מספר קרן</label>
-            <input
-              type="text"
-              id="query"
-              name="query"
-              value={filters.query}
-              onChange={handleInputChange}
-              placeholder="חיפוש לפי שם, חברה או מספר..."
-            />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="fundType">סוג מוצר</label>
-            <select
-              id="fundType"
-              name="fundType"
-              value={filters.fundType}
-              onChange={handleFundTypeChange}
-            >
-              <option value="Pension">קרן פנסיה</option>
-              <option value="Executive">ביטוח מנהלים</option>
-            </select>
-          </div>
-        </div>
-
-        <div className="form-row">
-          <div className="form-group">
-            <label htmlFor="sortBy">מיין לפי</label>
-            <select
-              id="sortBy"
-              name="sortBy"
-              value={filters.sortBy}
-              onChange={handleInputChange}
-            >
-              <option value="AVG_ANNUAL_YIELD_TRAILING_3YRS">ממוצעת שנתית 3 שנים</option>
-              <option value="AVG_ANNUAL_YIELD_TRAILING_5YRS">ממוצעת שנתית 5 שנים</option>
-              <option value="SHARPE_RATIO">מדד שארפ</option>
-            </select>
-          </div>
-
-          {filters.fundType === 'Pension' && (
-            <div className="form-group">
-              <label htmlFor="classification">סוג קרן</label>
-              <select
-                id="classification"
-                name="classification"
-                value={filters.classification}
+      {/* Search Card */}
+      <div className="search-card">
+        <form onSubmit={handleSearch}>
+          <div className="form-row">
+            <div className="form-group form-group-grow">
+              <label htmlFor="query">שם קרן, חברה מנהלת או מספר קרן</label>
+              <input
+                type="text"
+                id="query"
+                name="query"
+                value={filters.query}
                 onChange={handleInputChange}
+                placeholder="חיפוש לפי שם, חברה או מספר..."
+              />
+            </div>
+
+            <div className="form-group">
+              <label htmlFor="fundType">סוג מוצר</label>
+              <select
+                id="fundType"
+                name="fundType"
+                value={filters.fundType}
+                onChange={handleFundTypeChange}
               >
-                <option value="all">כל הקרנות</option>
-                <option value="קרנות כלליות">קרנות כלליות</option>
-                <option value="קרנות חדשות">קרנות חדשות</option>
+                <option value="Pension">קרן פנסיה</option>
+                <option value="Executive">ביטוח מנהלים</option>
               </select>
             </div>
-          )}
+          </div>
 
-        </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="sortBy">מיין לפי</label>
+              <select
+                id="sortBy"
+                name="sortBy"
+                value={filters.sortBy}
+                onChange={handleInputChange}
+              >
+                <option value="AVG_ANNUAL_YIELD_TRAILING_3YRS">ממוצעת שנתית 3 שנים</option>
+                <option value="AVG_ANNUAL_YIELD_TRAILING_5YRS">ממוצעת שנתית 5 שנים</option>
+                <option value="SHARPE_RATIO">מדד שארפ</option>
+              </select>
+            </div>
 
-        <div className="form-actions">
-          <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? 'מחפש...' : 'חפש'}
-          </button>
-          <button type="button" className="btn btn-secondary" onClick={clearFilters}>
-            נקה סינון
-          </button>
-          {selectedFunds.length > 0 && (
-            <button
-              type="button"
-              className="btn btn-compare"
-              onClick={() => setShowComparison(true)}
-            >
-              השווה ({selectedFunds.length}/3)
+            {filters.fundType === 'Pension' && (
+              <div className="form-group">
+                <label htmlFor="classification">סוג קרן</label>
+                <select
+                  id="classification"
+                  name="classification"
+                  value={filters.classification}
+                  onChange={handleInputChange}
+                >
+                  <option value="all">כל הקרנות</option>
+                  <option value="קרנות כלליות">קרנות כלליות</option>
+                  <option value="קרנות חדשות">קרנות חדשות</option>
+                </select>
+              </div>
+            )}
+          </div>
+
+          <div className="form-actions">
+            <button type="submit" className="btn btn-cta" disabled={loading}>
+              {loading ? 'מחפש...' : 'חפש קרנות'}
             </button>
-          )}
-        </div>
-      </form>
+            <button type="button" className="btn btn-outline" onClick={clearFilters}>
+              נקה סינון
+            </button>
+            {selectedFunds.length > 0 && (
+              <button
+                type="button"
+                className="btn btn-compare"
+                onClick={() => setShowComparison(true)}
+              >
+                השווה ({selectedFunds.length}/3)
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
 
       {error && (
-        <div className="error-message">
+        <div className="error-banner">
           <p>{error}</p>
         </div>
       )}
 
       {/* Comparison Modal */}
       {showComparison && selectedFunds.length > 0 && (
-        <div className="comparison-overlay" onClick={() => setShowComparison(false)}>
-          <div className="comparison-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="comparison-header">
+        <div className="modal-overlay" onClick={() => setShowComparison(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
               <h2>השוואת קרנות</h2>
-              <button className="close-btn" onClick={() => setShowComparison(false)}>×</button>
+              <button className="modal-close" onClick={() => setShowComparison(false)}>×</button>
             </div>
-            <div className="comparison-table-container">
+            <div className="modal-body">
               <table className="comparison-table">
                 <thead>
                   <tr>
@@ -354,8 +364,8 @@ function SearchPage() {
                 </tbody>
               </table>
             </div>
-            <div className="comparison-footer">
-              <p className="comparison-note">
+            <div className="modal-footer">
+              <p>
                 <strong>הערה:</strong> מדד שארפ מודד תשואה מתואמת סיכון - ככל שהוא גבוה יותר, כך הקרן מניבה תשואה טובה יותר ביחס לסיכון.
                 סטיית תקן מודדת את רמת התנודתיות - ככל שהיא נמוכה יותר, כך ההשקעה יציבה יותר.
               </p>
@@ -364,6 +374,7 @@ function SearchPage() {
         </div>
       )}
 
+      {/* Results */}
       {results && (
         <div className="results-section">
           <div className="results-header">
@@ -385,9 +396,9 @@ function SearchPage() {
                       className={`fund-card ${isSelected ? 'selected' : ''}`}
                       onClick={() => toggleFundSelection(fund)}
                     >
-                      <div className="fund-header">
+                      <div className="fund-card-header">
                         <h4>{fund.name}</h4>
-                        <span className={`fund-type ${fund.fundType?.toLowerCase()}`}>
+                        <span className={`fund-type-badge ${fund.fundType?.toLowerCase()}`}>
                           {getFundTypeHebrew(fund.fundType)}
                         </span>
                       </div>
@@ -408,13 +419,13 @@ function SearchPage() {
                           </span>
                         </div>
                         <div className="stat">
-                          <span className="stat-label">ממוצעת שנתית 3 שנים</span>
+                          <span className="stat-label">ממוצעת 3 שנים</span>
                           <span className={`stat-value ${fund.avgAnnualYield3Years > 0 ? 'positive' : 'negative'}`}>
                             {formatPercent(fund.avgAnnualYield3Years)}
                           </span>
                         </div>
                         <div className="stat">
-                          <span className="stat-label">ממוצעת שנתית 5 שנים</span>
+                          <span className="stat-label">ממוצעת 5 שנים</span>
                           <span className={`stat-value ${fund.avgAnnualYield5Years > 0 ? 'positive' : 'negative'}`}>
                             {formatPercent(fund.avgAnnualYield5Years)}
                           </span>
@@ -425,7 +436,7 @@ function SearchPage() {
                         </div>
                       </div>
 
-                      {isSelected && <div className="selected-indicator">✓ נבחר להשוואה</div>}
+                      {isSelected && <div className="selected-badge">נבחר להשוואה</div>}
                     </div>
                   );
                 })}
@@ -463,6 +474,26 @@ function SearchPage() {
         </div>
       )}
 
+      {/* Feature Cards */}
+      <div className="features-grid">
+        <div className="feature-card">
+          <div className="feature-icon">📈</div>
+          <h3>השוואת תשואות</h3>
+          <p>השווה תשואות שנתיות, 3 שנים ו-5 שנים בין קרנות</p>
+        </div>
+
+        <div className="feature-card">
+          <div className="feature-icon">🔍</div>
+          <h3>חיפוש מתקדם</h3>
+          <p>סנן לפי שם קרן, חברה מנהלת או מספר קרן</p>
+        </div>
+
+        <Link to="/chat" className="feature-card feature-card-link">
+          <div className="feature-icon">🤖</div>
+          <h3>סוכן חכם</h3>
+          <p>שאל שאלות בשפה חופשית וקבל תשובות מהנתונים</p>
+        </Link>
+      </div>
       <footer className="page-footer">
         <p>Created by - Natali Koifman</p>
       </footer>
