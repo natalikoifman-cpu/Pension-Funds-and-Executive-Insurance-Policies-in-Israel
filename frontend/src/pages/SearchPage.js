@@ -8,7 +8,7 @@ function SearchPage() {
     query: '',
     fundType: 'Pension',
     classification: 'all',
-    sortBy: 'YEAR_TO_DATE_YIELD',
+    sortBy: 'AVG_ANNUAL_YIELD_TRAILING_3YRS',
     maxStockExposure: '',
     establishmentPeriod: 'all'
   });
@@ -101,7 +101,7 @@ function SearchPage() {
       query: '',
       fundType: 'Pension',
       classification: 'all',
-      sortBy: 'YEAR_TO_DATE_YIELD',
+      sortBy: 'AVG_ANNUAL_YIELD_TRAILING_3YRS',
       maxStockExposure: '',
       establishmentPeriod: 'all'
     });
@@ -187,11 +187,9 @@ function SearchPage() {
               value={filters.sortBy}
               onChange={handleInputChange}
             >
-              <option value="YEAR_TO_DATE_YIELD">תשואה שנתית</option>
               <option value="AVG_ANNUAL_YIELD_TRAILING_3YRS">ממוצעת שנתית 3 שנים</option>
               <option value="AVG_ANNUAL_YIELD_TRAILING_5YRS">ממוצעת שנתית 5 שנים</option>
               <option value="SHARPE_RATIO">מדד שארפ</option>
-              <option value="AVG_ANNUAL_MANAGEMENT_FEE">דמי ניהול</option>
             </select>
           </div>
 
