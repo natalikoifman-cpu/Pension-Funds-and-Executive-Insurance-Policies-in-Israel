@@ -23,7 +23,7 @@ function App() {
               to="/chat"
               className={`nav-link ${location.pathname === '/chat' ? 'active' : ''}`}
             >
-              צ'אט
+              הסוכן החכם שלך
             </Link>
           </nav>
         </div>

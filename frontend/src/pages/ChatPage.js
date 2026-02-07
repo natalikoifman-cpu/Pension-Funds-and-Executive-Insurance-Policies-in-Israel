@@ -11,8 +11,9 @@ function ChatPage() {
       type: 'bot',
       content: 'שלום! אני כאן לעזור לך להציג ולהשוות נתונים על קרנות פנסיה וביטוחי מנהלים. אתה יכול לשאול אותי על השוואות בין קרנות ותשואות.',
       suggestedQuestions: [
-        'השוואה בין קרנות פנסיה',
-        'איזו קרן מניבה את התשואה הגבוהה ביותר?'
+        'מי החמש חברות שלהן תשואה הגבוהה ביותר במסלול 50 ומטה?',
+        'תציג לי את ה 3 חברות שלהן קרן פנסיה מקיפה במסלול השקעה מניות',
+        'תציג לי פוליסות מנהלים של מנורה מבטחים החל משנת הקמה 2004'
       ]
     }
   ]);
@@ -28,6 +29,13 @@ function ChatPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  const addDisclaimer = (text) => {
+    if (text.includes('אתר זה אינו מספק ייעוץ פנסיוני')) {
+      return text;
+    }
+    return text + DISCLAIMER;
+  };
 
   const sendMessage = async (messageText) => {
     const text = messageText || input.trim();
@@ -55,7 +63,7 @@ function ChatPage() {
 
       setMessages(prev => [...prev, {
         type: 'bot',
-        content: data.message + DISCLAIMER,
+        content: addDisclaimer(data.message),
         suggestedFunds: data.suggestedFunds,
         suggestedQuestions: data.suggestedQuestions
       }]);
@@ -79,11 +87,6 @@ function ChatPage() {
     sendMessage(question);
   };
 
-  const getRiskLevelHebrew = (level) => {
-    const levels = { Low: 'נמוך', Medium: 'בינוני', High: 'גבוה' };
-    return levels[level] || level;
-  };
-
   const getFundTypeHebrew = (type) => {
     const types = { Pension: 'קרן פנסיה', Executive: 'ביטוח מנהלים' };
     return types[type] || type;
@@ -92,7 +95,7 @@ function ChatPage() {
   return (
     <div className="chat-page">
       <div className="chat-header">
-        <h2>צ'אט</h2>
+        <h2>הסוכן החכם שלך</h2>
         <p>שאל שאלות בשפה חופשית וקבל נתונים מאתר משרד האוצר</p>
       </div>
 
@@ -113,8 +116,6 @@ function ChatPage() {
                           <div className="mini-fund-details">
                             <span>{getFundTypeHebrew(fund.fundType)}</span>
                             <span>תשואה: {fund.annualReturn}%</span>
-                            <span>דמי ניהול: {fund.managementFee}%</span>
-                            <span>סיכון: {getRiskLevelHebrew(fund.riskLevel)}</span>
                           </div>
                         </div>
                       ))}
