@@ -9,6 +9,9 @@ on:
       - main
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   frontend-build:
     runs-on: ubuntu-latest
@@ -28,7 +31,8 @@ jobs:
         working-directory: frontend
 
       - name: Run frontend tests
-        run: CI=1 npm test -- --watchAll=false --passWithNoTests
+        if: hashFiles('frontend/src/**/*.{spec,test}.{js,jsx,ts,tsx}', 'frontend/src/**/__tests__/**/*.{js,jsx,ts,tsx}') != ''
+        run: CI=1 npm test -- --watchAll=false
         working-directory: frontend
 
       - name: Build frontend
@@ -53,3 +57,12 @@ jobs:
       - name: Build
         run: dotnet build --configuration Release --no-restore
         working-directory: FunctionApp
+
+      - name: Run backend tests
+        if: hashFiles('FunctionApp/**/*Test*.csproj', 'FunctionApp/**/*Tests*.csproj') != ''
+        working-directory: FunctionApp
+        run: |
+          set -e
+          for project in $(find . \( -name '*Test*.csproj' -o -name '*Tests*.csproj' \)); do
+            dotnet test "$project" --configuration Release
+          done
