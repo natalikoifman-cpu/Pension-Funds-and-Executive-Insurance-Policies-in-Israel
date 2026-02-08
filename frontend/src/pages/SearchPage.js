@@ -134,7 +134,7 @@ function SearchPage() {
   };
 
   const isGemelType = (fundType) => {
-    return ['gemel', 'hishtalmut', 'gemel-child'].includes(fundType?.toLowerCase());
+    return ['gemel', 'hishtalmut', 'gemelchild'].includes(fundType?.toLowerCase());
   };
 
   const getPageTitle = () => {

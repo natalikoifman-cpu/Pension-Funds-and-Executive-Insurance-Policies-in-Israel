@@ -103,7 +103,7 @@ public class UserSearchFunction
             {
                 "pension" => "Pension",
                 "executive" or "insurance" => "Insurance",
-                "gemel" or "hishtalmut" or "gemel-child" => "Pension",
+                "gemel" or "hishtalmut" or "gemelchild" or "gemel-child" => "Pension",
                 _ => "Pension"
             };
 
@@ -112,7 +112,7 @@ public class UserSearchFunction
             {
                 "gemel" => "{\"FUND_CLASSIFICATION\":{\"$eq\":\"קופת גמל להשקעה\"}}",
                 "hishtalmut" => "{\"FUND_CLASSIFICATION\":{\"$eq\":\"קרנות השתלמות\"}}",
-                "gemel-child" => "{\"FUND_CLASSIFICATION\":{\"$eq\":\"קופת גמל להשקעה - חסכון לילד\"}}",
+                "gemelchild" or "gemel-child" => "{\"FUND_CLASSIFICATION\":{\"$eq\":\"קופת גמל להשקעה - חסכון לילד\"}}",
                 _ => null
             };
 
@@ -188,7 +188,7 @@ public class UserSearchFunction
                 "executive" or "insurance" => "Executive",
                 "gemel" => "Gemel",
                 "hishtalmut" => "Hishtalmut",
-                "gemel-child" => "GemelChild",
+                "gemelchild" or "gemel-child" => "GemelChild",
                 _ => "Pension"
             };
             var funds = apiResult.Result.Records.Select(r => MapToFund(r, mappedFundType)).ToList();
