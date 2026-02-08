@@ -97,13 +97,14 @@ public class UserSearchFunction
             var apiKey = Environment.GetEnvironmentVariable("FUNDS_API_KEY") ?? "c01221ec-b769-47a7-883c-e6cfb01276ad";
 
             // Map fundType to API format
-            // New fund types (gemel, hishtalmut, gemel-child) use the Pension endpoint
-            // with FUND_CLASSIFICATION complex filter
+            // Pension funds → Pension endpoint
+            // Insurance → Insurance endpoint
+            // Gemel/Hishtalmut/GemelChild → Provident endpoint (with FUND_CLASSIFICATION filter)
             var apiFundType = fundType?.ToLower() switch
             {
                 "pension" => "Pension",
                 "executive" or "insurance" => "Insurance",
-                "gemel" or "hishtalmut" or "gemelchild" or "gemel-child" => "Pension",
+                "gemel" or "hishtalmut" or "gemelchild" or "gemel-child" => "Provident",
                 _ => "Pension"
             };
 

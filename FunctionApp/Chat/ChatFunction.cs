@@ -271,7 +271,7 @@ public class ChatFunction
         {
             "pension" => "Pension",
             "executive" or "insurance" => "Insurance",
-            "gemel" or "hishtalmut" or "gemelchild" => "Pension",
+            "gemel" or "hishtalmut" or "gemelchild" => "Provident",
             _ => "Pension"
         };
 
