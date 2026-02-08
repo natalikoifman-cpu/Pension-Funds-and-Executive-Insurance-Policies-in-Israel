@@ -9,10 +9,11 @@ function ChatPage() {
   const [messages, setMessages] = useState([
     {
       type: 'bot',
-      content: 'שלום! אני כאן לעזור לך להציג ולהשוות נתונים על קרנות פנסיה וביטוחי מנהלים. אתה יכול לשאול אותי על השוואות בין קרנות ותשואות.',
+      content: 'שלום! אני כאן לעזור לך להציג ולהשוות נתונים על קרנות פנסיה, ביטוחי מנהלים, קופות גמל וקרנות השתלמות. אתה יכול לשאול אותי על השוואות ותשואות.',
       suggestedQuestions: [
         'מי החמש חברות שלהן תשואה הגבוהה ביותר במסלול 50 ומטה?',
-        'תציג לי את ה 3 חברות שלהן קרן פנסיה מקיפה במסלול השקעה מניות',
+        'הצג קרנות השתלמות עם תשואה גבוהה ב-5 שנים',
+        'הצג קופות גמל להשקעה עם דמי ניהול נמוכים',
         'תציג לי פוליסות מנהלים של מנורה מבטחים החל משנת הקמה 2004'
       ]
     }
@@ -88,7 +89,13 @@ function ChatPage() {
   };
 
   const getFundTypeHebrew = (type) => {
-    const types = { Pension: 'קרן פנסיה', Executive: 'ביטוח מנהלים' };
+    const types = {
+      Pension: 'קרן פנסיה',
+      Executive: 'ביטוח מנהלים',
+      Gemel: 'קופת גמל להשקעה',
+      Hishtalmut: 'קרנות השתלמות',
+      GemelChild: 'קופת גמל - חסכון לילד'
+    };
     return types[type] || type;
   };
 
@@ -97,7 +104,7 @@ function ChatPage() {
       <div className="chat-hero">
         <div className="feature-badge">סוכן חכם</div>
         <h2 className="chat-title">הסוכן החכם שלך</h2>
-        <p className="chat-subtitle">שאל שאלות בשפה חופשית וקבל נתונים מאתר משרד האוצר</p>
+        <p className="chat-subtitle">שאל שאלות בשפה חופשית על פנסיה, גמל, השתלמות וביטוח מנהלים</p>
       </div>
 
       <div className="chat-container">

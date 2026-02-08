@@ -37,7 +37,14 @@ public class ChatFunction
         PropertyNameCaseInsensitive = true
     };
 
-    private const string SystemPrompt = @"אתה כלי להצגת נתונים על קרנות פנסיה וביטוחי מנהלים בישראל. הנתונים מגיעים מאתר משרד האוצר.
+    private const string SystemPrompt = @"אתה כלי להצגת נתונים על מוצרים פיננסיים בישראל. הנתונים מגיעים מאתר משרד האוצר.
+
+מוצרים נתמכים:
+- קרנות פנסיה
+- ביטוחי מנהלים
+- קופות גמל להשקעה
+- קרנות השתלמות
+- קופות גמל לחסכון לילד
 
 כללים:
 1. ענה תמיד בעברית אלא אם המשתמש פונה באנגלית
@@ -48,11 +55,12 @@ public class ChatFunction
 
 אתה יכול:
 - להציג נתונים מאתר משרד האוצר
-- להשוות בין קרנות על בסיס נתונים פומביים
+- להשוות בין קרנות/קופות על בסיס נתונים פומביים
 - להציג תשואות, דמי ניהול וסטטיסטיקות
+- להשוות בין קופות גמל, קרנות השתלמות וקופות חסכון לילד
 
 אתה לא יכול:
-- להמליץ על קרן ספציפית
+- להמליץ על קרן או קופה ספציפית
 - לספק ייעוץ מותאם אישית
 - להציע איזו קרן ""הכי מתאימה"" למשתמש
 - לתת המלצות השקעה
@@ -65,7 +73,8 @@ public class ChatFunction
 - תשואות (חודשית, שנתית, 3 שנים, 5 שנים)
 - דמי ניהול ודמי הפקדה
 - מדדי סיכון (סטיית תקן, שארפ, אלפא)
-- חשיפה למניות, לחו""ל ולמט""ח";
+- חשיפה למניות, לחו""ל ולמט""ח
+- סך נכסים מנוהלים";
 
     public ChatFunction(ILogger<ChatFunction> logger, IAzureOpenAIService openAIService, IHttpClientFactory httpClientFactory)
     {
@@ -171,6 +180,26 @@ public class ChatFunction
         {
             intent.Type = "risk_inquiry";
         }
+        else if (messageLower.Contains("גמל להשקעה") || messageLower.Contains("קופת גמל להשקעה"))
+        {
+            intent.Type = "gemel_general";
+            intent.Parameters["fundType"] = "Gemel";
+        }
+        else if (messageLower.Contains("השתלמות") || messageLower.Contains("קרן השתלמות"))
+        {
+            intent.Type = "hishtalmut_general";
+            intent.Parameters["fundType"] = "Hishtalmut";
+        }
+        else if (messageLower.Contains("חסכון לילד") || messageLower.Contains("גמל לילד"))
+        {
+            intent.Type = "gemel_child_general";
+            intent.Parameters["fundType"] = "GemelChild";
+        }
+        else if (messageLower.Contains("גמל") || messageLower.Contains("provident"))
+        {
+            intent.Type = "gemel_general";
+            intent.Parameters["fundType"] = "Gemel";
+        }
         else if (messageLower.Contains("pension") || messageLower.Contains("פנסיה"))
         {
             intent.Type = "pension_general";
@@ -202,7 +231,10 @@ public class ChatFunction
             "risk_inquiry" => "מדדי הסיכון כוללים סטיית תקן, מדד שארפ ואלפא. להלן הנתונים מאתר משרד האוצר. איזה מדד סיכון תרצה לראות?",
             "pension_general" => "להלן נתונים על קרנות פנסיה מאתר משרד האוצר. איזה נתונים תרצה לראות?",
             "executive_general" => "להלן נתונים על ביטוחי מנהלים מאתר משרד האוצר. איזה נתונים תרצה לראות?",
-            _ => "שלום! אני כאן לעזור לך להציג ולהשוות נתונים על קרנות פנסיה וביטוחי מנהלים. אתה יכול לשאול אותי על השוואות בין קרנות ותשואות."
+            "gemel_general" => "להלן נתונים על קופות גמל להשקעה מאתר משרד האוצר. ניתן להשוות תשואות, דמי ניהול ודמי הפקדה. איזה נתונים תרצה לראות?",
+            "hishtalmut_general" => "להלן נתונים על קרנות השתלמות מאתר משרד האוצר. ניתן להשוות תשואות, דמי ניהול וביצועים. איזה נתונים תרצה לראות?",
+            "gemel_child_general" => "להלן נתונים על קופות גמל לחסכון לילד מאתר משרד האוצר. איזה נתונים תרצה לראות?",
+            _ => "שלום! אני כאן לעזור לך להציג ולהשוות נתונים על קרנות פנסיה, ביטוחי מנהלים, קופות גמל וקרנות השתלמות. אתה יכול לשאול אותי על השוואות ותשואות."
         };
         return response + ResponseDisclaimer;
     }
@@ -239,10 +271,26 @@ public class ChatFunction
         {
             "pension" => "Pension",
             "executive" or "insurance" => "Insurance",
+            "gemel" or "hishtalmut" or "gemelchild" => "Pension",
             _ => "Pension"
         };
 
-        var url = $"{ExternalApiBaseUrl}{ExternalApiPath}/{apiFundType}?fields={AllFields}&limit={limit}&sort={Uri.EscapeDataString(sort)}";
+        // Build FUND_CLASSIFICATION filter for new fund types
+        var classificationFilter = fundType.ToLower() switch
+        {
+            "gemel" => "{\"FUND_CLASSIFICATION\":{\"$eq\":\"קופת גמל להשקעה\"}}",
+            "hishtalmut" => "{\"FUND_CLASSIFICATION\":{\"$eq\":\"קרנות השתלמות\"}}",
+            "gemelchild" => "{\"FUND_CLASSIFICATION\":{\"$eq\":\"קופת גמל להשקעה - חסכון לילד\"}}",
+            _ => null
+        };
+
+        var queryParams = $"fields={AllFields}&limit={limit}&sort={Uri.EscapeDataString(sort)}";
+        if (!string.IsNullOrEmpty(classificationFilter))
+        {
+            queryParams += $"&complexFilters={Uri.EscapeDataString(classificationFilter)}";
+        }
+
+        var url = $"{ExternalApiBaseUrl}{ExternalApiPath}/{apiFundType}?{queryParams}";
 
         var request = new HttpRequestMessage(HttpMethod.Get, url);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
@@ -262,7 +310,14 @@ public class ChatFunction
             return new List<PensionFund>();
         }
 
-        var mappedFundType = apiFundType == "Insurance" ? "Executive" : "Pension";
+        var mappedFundType = fundType.ToLower() switch
+        {
+            "executive" or "insurance" => "Executive",
+            "gemel" => "Gemel",
+            "hishtalmut" => "Hishtalmut",
+            "gemelchild" => "GemelChild",
+            _ => "Pension"
+        };
         return apiResult.Result.Records.Select(r => MapToFund(r, mappedFundType)).ToList();
     }
 
@@ -329,11 +384,27 @@ public class ChatFunction
                 "מה זה מדד שארפ?",
                 "הצג קרנות לפי מדד שארפ"
             },
+            "gemel_general" => new List<string>
+            {
+                "הצג קופות גמל להשקעה עם תשואה גבוהה",
+                "הצג קופות גמל עם דמי ניהול נמוכים"
+            },
+            "hishtalmut_general" => new List<string>
+            {
+                "הצג קרנות השתלמות עם תשואה גבוהה ב-5 שנים",
+                "השווה בין קרנות השתלמות לפי דמי ניהול"
+            },
+            "gemel_child_general" => new List<string>
+            {
+                "הצג קופות חסכון לילד עם תשואה גבוהה",
+                "השווה בין קופות חסכון לילד"
+            },
             _ => new List<string>
             {
                 "מי החמש חברות שלהן תשואה הגבוהה ביותר במסלול 50 ומטה?",
                 "תציג לי את ה 3 חברות שלהן קרן פנסיה מקיפה במסלול השקעה מניות",
-                "תציג לי פוליסות מנהלים של מנורה מבטחים החל משנת הקמה 2004"
+                "הצג קרנות השתלמות עם תשואה גבוהה",
+                "הצג קופות גמל להשקעה לפי דמי ניהול"
             }
         };
     }
