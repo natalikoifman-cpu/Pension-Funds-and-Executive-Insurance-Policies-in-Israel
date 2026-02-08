@@ -123,8 +123,56 @@ function SearchPage() {
   };
 
   const getFundTypeHebrew = (type) => {
-    const types = { Pension: 'קרן פנסיה', Executive: 'ביטוח מנהלים' };
+    const types = {
+      Pension: 'קרן פנסיה',
+      Executive: 'ביטוח מנהלים',
+      Gemel: 'קופת גמל להשקעה',
+      Hishtalmut: 'קרנות השתלמות',
+      GemelChild: 'קופת גמל - חסכון לילד'
+    };
     return types[type] || type;
+  };
+
+  const isGemelType = (fundType) => {
+    return ['gemel', 'hishtalmut', 'gemel-child'].includes(fundType?.toLowerCase());
+  };
+
+  const getPageTitle = () => {
+    switch (filters.fundType) {
+      case 'Pension':
+      case 'Executive':
+        return 'השוואת קרנות פנסיה\nוביטוחי מנהלים';
+      case 'Gemel':
+        return 'השוואת קופות גמל להשקעה';
+      case 'Hishtalmut':
+        return 'השוואת קרנות השתלמות';
+      case 'GemelChild':
+        return 'השוואת קופות גמל\nחסכון לילד';
+      default:
+        return 'השוואת מוצרים פיננסיים';
+    }
+  };
+
+  const getPageSubtitle = () => {
+    switch (filters.fundType) {
+      case 'Pension':
+      case 'Executive':
+        return 'חפש, סנן והשווה בין מאות קרנות פנסיה וביטוחי מנהלים בישראל. נתונים רשמיים ממשרד האוצר.';
+      case 'Gemel':
+        return 'חפש, סנן והשווה בין קופות גמל להשקעה בישראל. נתונים רשמיים ממשרד האוצר.';
+      case 'Hishtalmut':
+        return 'חפש, סנן והשווה בין קרנות השתלמות בישראל. נתונים רשמיים ממשרד האוצר.';
+      case 'GemelChild':
+        return 'חפש, סנן והשווה בין קופות גמל לחסכון לילד בישראל. נתונים רשמיים ממשרד האוצר.';
+      default:
+        return 'חפש, סנן והשווה בין מוצרים פיננסיים בישראל. נתונים רשמיים ממשרד האוצר.';
+    }
+  };
+
+  const formatAssets = (num) => {
+    if (num === null || num === undefined) return '-';
+    if (num >= 1000) return `${(num / 1000).toFixed(1)} מיליארד ₪`;
+    return `${Number(num).toFixed(0)} מיליון ₪`;
   };
 
   const formatNumber = (num, decimals = 2) => {
@@ -149,12 +197,11 @@ function SearchPage() {
       {/* Hero Section */}
       <section className="hero-section">
         <div className="feature-badge">נתונים רשמיים ממשרד האוצר</div>
-        <h1 className="hero-title">
-          השוואת קרנות פנסיה<br />וביטוחי מנהלים
+        <h1 className="hero-title" style={{ whiteSpace: 'pre-line' }}>
+          {getPageTitle()}
         </h1>
         <p className="hero-subtitle">
-          חפש, סנן והשווה בין מאות קרנות פנסיה וביטוחי מנהלים בישראל.
-          נתונים רשמיים ממשרד האוצר.
+          {getPageSubtitle()}
         </p>
       </section>
 
@@ -184,6 +231,9 @@ function SearchPage() {
               >
                 <option value="Pension">קרן פנסיה</option>
                 <option value="Executive">ביטוח מנהלים</option>
+                <option value="Gemel">קופת גמל להשקעה</option>
+                <option value="Hishtalmut">קרנות השתלמות</option>
+                <option value="GemelChild">קופת גמל - חסכון לילד</option>
               </select>
             </div>
           </div>
@@ -200,6 +250,8 @@ function SearchPage() {
                 <option value="AVG_ANNUAL_YIELD_TRAILING_3YRS">ממוצעת שנתית 3 שנים</option>
                 <option value="AVG_ANNUAL_YIELD_TRAILING_5YRS">ממוצעת שנתית 5 שנים</option>
                 <option value="SHARPE_RATIO">מדד שארפ</option>
+                <option value="AVG_ANNUAL_MANAGEMENT_FEE">דמי ניהול</option>
+                <option value="AVG_DEPOSIT_FEE">דמי הפקדה</option>
               </select>
             </div>
 
@@ -276,6 +328,18 @@ function SearchPage() {
                     {selectedFunds.map(fund => (
                       <td key={fund.id}>{fund.managingCompany}</td>
                     ))}
+                  </tr>
+                  <tr>
+                    <td>דמי ניהול</td>
+                    {selectedFunds.map(fund => {
+                      const best = getBestValue(selectedFunds, 'managementFee', true);
+                      const isBest = fund.managementFee === best;
+                      return (
+                        <td key={fund.id} className={isBest ? 'best-value' : ''}>
+                          {formatPercent(fund.managementFee)}
+                        </td>
+                      );
+                    })}
                   </tr>
                   <tr>
                     <td>דמי הפקדה</td>
@@ -434,6 +498,24 @@ function SearchPage() {
                           <span className="stat-label">מדד שארפ</span>
                           <span className="stat-value">{formatNumber(fund.sharpeRatio)}</span>
                         </div>
+                        {isGemelType(fund.fundType) && (
+                          <>
+                            <div className="stat">
+                              <span className="stat-label">דמי ניהול</span>
+                              <span className="stat-value">{formatPercent(fund.managementFee)}</span>
+                            </div>
+                            <div className="stat">
+                              <span className="stat-label">דמי הפקדה</span>
+                              <span className="stat-value">{formatPercent(fund.depositFee)}</span>
+                            </div>
+                            {fund.totalAssets && (
+                              <div className="stat">
+                                <span className="stat-label">סך נכסים</span>
+                                <span className="stat-value">{formatAssets(fund.totalAssets)}</span>
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
 
                       {isSelected && <div className="selected-badge">נבחר להשוואה</div>}
@@ -479,13 +561,13 @@ function SearchPage() {
         <div className="feature-card">
           <div className="feature-icon">📈</div>
           <h3>השוואת תשואות</h3>
-          <p>השווה תשואות שנתיות, 3 שנים ו-5 שנים בין קרנות</p>
+          <p>השווה תשואות שנתיות, 3 שנים ו-5 שנים בין קרנות וקופות</p>
         </div>
 
         <div className="feature-card">
           <div className="feature-icon">🔍</div>
-          <h3>חיפוש מתקדם</h3>
-          <p>סנן לפי שם קרן, חברה מנהלת או מספר קרן</p>
+          <h3>כל המוצרים הפיננסיים</h3>
+          <p>פנסיה, ביטוח מנהלים, קופות גמל, קרנות השתלמות וחסכון לילד</p>
         </div>
 
         <Link to="/chat" className="feature-card feature-card-link">

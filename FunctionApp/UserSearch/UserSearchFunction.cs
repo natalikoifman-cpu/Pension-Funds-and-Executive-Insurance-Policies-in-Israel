@@ -97,12 +97,31 @@ public class UserSearchFunction
             var apiKey = Environment.GetEnvironmentVariable("FUNDS_API_KEY") ?? "c01221ec-b769-47a7-883c-e6cfb01276ad";
 
             // Map fundType to API format
+            // New fund types (gemel, hishtalmut, gemel-child) use the Pension endpoint
+            // with FUND_CLASSIFICATION complex filter
             var apiFundType = fundType?.ToLower() switch
             {
                 "pension" => "Pension",
                 "executive" or "insurance" => "Insurance",
+                "gemel" or "hishtalmut" or "gemel-child" => "Pension",
                 _ => "Pension"
             };
+
+            // Auto-inject FUND_CLASSIFICATION filter for new fund types
+            var fundClassificationFilter = fundType?.ToLower() switch
+            {
+                "gemel" => "{\"FUND_CLASSIFICATION\":{\"$eq\":\"קופת גמל להשקעה\"}}",
+                "hishtalmut" => "{\"FUND_CLASSIFICATION\":{\"$eq\":\"קרנות השתלמות\"}}",
+                "gemel-child" => "{\"FUND_CLASSIFICATION\":{\"$eq\":\"קופת גמל להשקעה - חסכון לילד\"}}",
+                _ => null
+            };
+
+            if (!string.IsNullOrEmpty(fundClassificationFilter))
+            {
+                complexFilters = string.IsNullOrEmpty(complexFilters)
+                    ? fundClassificationFilter
+                    : $"{{\"$and\":[{fundClassificationFilter},{complexFilters}]}}";
+            }
 
             var offset = (pageNumber - 1) * pageSize;
 
@@ -163,7 +182,15 @@ public class UserSearchFunction
                 return new SearchResult { Funds = new List<PensionFund>(), TotalCount = 0, PageNumber = pageNumber, PageSize = pageSize };
             }
 
-            var mappedFundType = apiFundType == "Insurance" ? "Executive" : "Pension";
+            // Preserve the original fund type for display purposes
+            var mappedFundType = fundType?.ToLower() switch
+            {
+                "executive" or "insurance" => "Executive",
+                "gemel" => "Gemel",
+                "hishtalmut" => "Hishtalmut",
+                "gemel-child" => "GemelChild",
+                _ => "Pension"
+            };
             var funds = apiResult.Result.Records.Select(r => MapToFund(r, mappedFundType)).ToList();
             var totalCount = apiResult.Result.Total;
 

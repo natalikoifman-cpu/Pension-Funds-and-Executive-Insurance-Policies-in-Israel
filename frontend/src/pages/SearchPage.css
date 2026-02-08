@@ -250,6 +250,24 @@
   border-color: var(--accent-teal);
 }
 
+.fund-type-badge.gemel {
+  background: #7c3aed;
+  color: #ffffff;
+  border-color: #7c3aed;
+}
+
+.fund-type-badge.hishtalmut {
+  background: #d97706;
+  color: #ffffff;
+  border-color: #d97706;
+}
+
+.fund-type-badge.gemelchild {
+  background: #ec4899;
+  color: #ffffff;
+  border-color: #ec4899;
+}
+
 .fund-meta {
   display: flex;
   justify-content: space-between;
