@@ -123,7 +123,7 @@
 }
 
 .mini-fund-card:hover {
-  border-color: var(--accent-blue);
+  border-color: var(--primary-blue);
 }
 
 .mini-fund-name {
@@ -169,8 +169,8 @@
 }
 
 .suggested-question-btn:hover:not(:disabled) {
-  border-color: var(--accent-blue);
-  color: var(--accent-blue);
+  border-color: var(--primary-blue);
+  color: var(--primary-blue);
 }
 
 .suggested-question-btn:disabled {
@@ -233,14 +233,14 @@
 }
 
 .chat-input-form input:focus {
-  border-color: var(--accent-blue);
+  border-color: var(--primary-blue);
   box-shadow: var(--focus-ring);
 }
 
 .chat-input-form button {
-  background: transparent;
-  color: var(--accent-blue);
-  border: 2px solid var(--accent-blue);
+  background: var(--primary-blue);
+  color: #ffffff;
+  border: 2px solid var(--primary-blue);
   padding: 12px 28px;
   border-radius: 24px;
   font-size: 15px;
@@ -251,7 +251,8 @@
 }
 
 .chat-input-form button:hover:not(:disabled) {
-  background: var(--accent-blue);
+  background: var(--primary-blue-light);
+  border-color: var(--primary-blue-light);
   color: #ffffff;
 }
 

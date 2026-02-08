@@ -6,8 +6,8 @@
 
 /* Navbar */
 .navbar {
-  background: var(--bg-white);
-  border-bottom: 1px solid var(--border-color);
+  background: var(--primary-blue);
+  border-bottom: none;
   padding: 0 32px;
   position: sticky;
   top: 0;
@@ -26,13 +26,14 @@
 .navbar-logo {
   font-size: 18px;
   font-weight: 700;
-  color: var(--text-dark);
+  color: #ffffff;
   text-decoration: none;
-  transition: color var(--transition);
+  transition: opacity var(--transition);
 }
 
 .navbar-logo:hover {
-  color: var(--accent-blue);
+  opacity: 0.85;
+  color: #ffffff;
 }
 
 .navbar-nav {
@@ -41,7 +42,7 @@
 }
 
 .nav-link {
-  color: var(--text-muted);
+  color: rgba(255, 255, 255, 0.7);
   text-decoration: none;
   padding: 8px 16px;
   border-radius: var(--border-radius-sm);
@@ -52,12 +53,12 @@
 }
 
 .nav-link:hover {
-  color: var(--text-dark);
+  color: #ffffff;
 }
 
 .nav-link.active {
-  color: var(--text-dark);
-  border-color: var(--text-dark);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.5);
   font-weight: 600;
 }
 
