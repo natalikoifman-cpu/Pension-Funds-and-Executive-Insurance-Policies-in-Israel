@@ -45,6 +45,61 @@
   letter-spacing: 0.01em;
 }
 
+/* Product Selection Cards */
+.product-selection-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 16px;
+  max-width: 900px;
+  margin: 0 auto 32px;
+  padding: 0 20px;
+}
+
+.product-card {
+  background: var(--bg-white);
+  border: 2px solid var(--border-color);
+  border-radius: var(--border-radius);
+  padding: 20px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.product-card:hover {
+  border-color: var(--primary-blue);
+  transform: translateY(-2px);
+}
+
+.product-card.active {
+  border-color: var(--primary-blue);
+  background: rgba(30, 58, 95, 0.04);
+  box-shadow: 0 4px 12px rgba(30, 58, 95, 0.15);
+}
+
+.product-icon {
+  font-size: 28px;
+  display: block;
+  margin-bottom: 10px;
+}
+
+.product-card h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin: 0 0 6px 0;
+}
+
+.product-card p {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.product-card.active h3 {
+  color: var(--primary-blue);
+}
+
 /* Search Card */
 .search-card {
   background: var(--bg-white);
@@ -616,6 +671,29 @@
   .fund-stats {
     grid-template-columns: repeat(2, 1fr);
     gap: 6px;
+  }
+
+  .product-selection-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    padding: 0 16px;
+  }
+
+  .product-card {
+    padding: 16px 12px;
+  }
+
+  .product-icon {
+    font-size: 24px;
+    margin-bottom: 8px;
+  }
+
+  .product-card h3 {
+    font-size: 13px;
+  }
+
+  .product-card p {
+    display: none;
   }
 
   .features-grid {
