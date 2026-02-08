@@ -114,7 +114,15 @@ function SearchPage() {
       throw new Error(`שגיאה בחיפוש (${response.status})${errorText ? ': ' + errorText : ''}`);
     }
 
-    return await response.json();
+    const data = await response.json();
+
+    // Normalize response: ensure funds is always an array
+    const funds = Array.isArray(data.funds) ? data.funds : [];
+    return {
+      ...data,
+      funds,
+      totalCount: funds.length > 0 ? (data.totalCount || funds.length) : 0
+    };
   };
 
   const handlePageChange = async (newPage) => {
