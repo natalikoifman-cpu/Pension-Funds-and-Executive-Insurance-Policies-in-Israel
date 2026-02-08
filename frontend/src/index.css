@@ -37,7 +37,7 @@ input, select {
 
 input:focus, select:focus {
   outline: none;
-  border-color: var(--accent-blue);
+  border-color: var(--primary-blue);
   box-shadow: var(--focus-ring);
 }
 

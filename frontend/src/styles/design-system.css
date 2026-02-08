@@ -6,13 +6,16 @@
   --text-dark: #1a1a1a;
   --text-muted: #6b6b6b;
   --text-light: #999999;
+  --primary-blue: #1e3a5f;
+  --primary-blue-light: #2d4a6f;
   --accent-blue: #2563EB;
   --accent-blue-hover: #1d4ed8;
   --accent-blue-light: rgba(37, 99, 235, 0.08);
+  --accent-teal: #0d9488;
   --badge-bg: #E8EDF2;
   --badge-text: #4a5568;
   --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  --card-shadow-hover: 0 4px 16px rgba(37, 99, 235, 0.1);
+  --card-shadow-hover: 0 4px 16px rgba(30, 58, 95, 0.12);
   --border-color: #e0e0e0;
   --border-dark: #333333;
   --border-radius: 12px;
@@ -20,6 +23,6 @@
   --border-radius-sm: 8px;
   --positive: #16a34a;
   --negative: #dc2626;
-  --focus-ring: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  --focus-ring: 0 0 0 3px rgba(30, 58, 95, 0.2);
   --transition: 0.2s ease;
 }
