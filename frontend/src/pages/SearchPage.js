@@ -4,6 +4,17 @@ import './SearchPage.css';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 
+const PRODUCT_TYPES = [
+  { id: 'Pension', icon: '📊', label: 'קרנות פנסיה', description: 'קרנות פנסיה מקיפות וכלליות' },
+  { id: 'Executive', icon: '📋', label: 'ביטוחי מנהלים', description: 'פוליסות ביטוח מנהלים' },
+  { id: 'Gemel', icon: '💰', label: 'קופות גמל', description: 'קופות גמל להשקעה' },
+  { id: 'Hishtalmut', icon: '🎓', label: 'קרנות השתלמות', description: 'קרנות השתלמות לשכירים ועצמאים' },
+  { id: 'GemelChild', icon: '👶', label: 'חסכון לילד', description: 'קופות גמל לחסכון לילד' },
+];
+
+// Fee sort fields should sort ascending (lower = better)
+const FEE_SORT_FIELDS = ['AVG_ANNUAL_MANAGEMENT_FEE', 'AVG_DEPOSIT_FEE'];
+
 function SearchPage() {
   const [filters, setFilters] = useState({
     query: '',
@@ -34,14 +45,30 @@ function SearchPage() {
     }));
   };
 
-  const handleFundTypeChange = (e) => {
-    const { value } = e.target;
+  const handleProductSelect = (productId) => {
     setFilters(prev => ({
       ...prev,
-      fundType: value,
+      fundType: productId,
       classification: 'all',
       establishmentPeriod: 'all'
     }));
+    setSelectedFunds([]);
+    // Trigger search with new product type
+    setLoading(true);
+    setError(null);
+    setPage(1);
+
+    const searchFilters = {
+      ...filters,
+      fundType: productId,
+      classification: 'all',
+      establishmentPeriod: 'all'
+    };
+
+    fetchResultsWithFilters(searchFilters, 1)
+      .then(data => setResults(data))
+      .catch(err => setError(err.message))
+      .finally(() => setLoading(false));
   };
 
   const handleSearch = async (e) => {
@@ -51,7 +78,7 @@ function SearchPage() {
     setPage(1);
 
     try {
-      const data = await fetchResults(1);
+      const data = await fetchResultsWithFilters(filters, 1);
       setResults(data);
     } catch (err) {
       setError(err.message);
@@ -60,25 +87,32 @@ function SearchPage() {
     }
   };
 
-  const fetchResults = async (pageNum) => {
+  const fetchResultsWithFilters = async (currentFilters, pageNum) => {
     const params = new URLSearchParams();
 
-    if (filters.query) params.append('query', filters.query);
-    if (filters.fundType) params.append('fundType', filters.fundType);
-    if (filters.sortBy) params.append('sortBy', filters.sortBy);
-    if (filters.maxStockExposure) params.append('maxStockExposure', filters.maxStockExposure);
-    if (filters.classification && filters.classification !== 'all') {
-      params.append('classification', filters.classification);
+    if (currentFilters.query) params.append('query', currentFilters.query);
+    if (currentFilters.fundType) params.append('fundType', currentFilters.fundType);
+    if (currentFilters.sortBy) params.append('sortBy', currentFilters.sortBy);
+    if (currentFilters.maxStockExposure) params.append('maxStockExposure', currentFilters.maxStockExposure);
+    if (currentFilters.classification && currentFilters.classification !== 'all') {
+      params.append('classification', currentFilters.classification);
     }
-    if (filters.fundType === 'Executive' && filters.establishmentPeriod && filters.establishmentPeriod !== 'all') {
-      params.append('classification', filters.establishmentPeriod);
+    if (currentFilters.fundType === 'Executive' && currentFilters.establishmentPeriod && currentFilters.establishmentPeriod !== 'all') {
+      params.append('classification', currentFilters.establishmentPeriod);
     }
-    params.append('sortDesc', 'true');
+
+    // Sort ascending for fee fields (lower = better), descending for everything else
+    const isFeeSort = FEE_SORT_FIELDS.includes(currentFilters.sortBy);
+    params.append('sortDesc', isFeeSort ? 'false' : 'true');
+    params.append('distinct', 'true');
     params.append('pageNumber', pageNum);
     params.append('pageSize', pageSize);
 
     const response = await fetch(`${API_BASE_URL}/Search?${params}`);
-    if (!response.ok) throw new Error('שגיאה בחיפוש');
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => '');
+      throw new Error(`שגיאה בחיפוש (${response.status})${errorText ? ': ' + errorText : ''}`);
+    }
 
     return await response.json();
   };
@@ -86,7 +120,7 @@ function SearchPage() {
   const handlePageChange = async (newPage) => {
     setLoading(true);
     try {
-      const data = await fetchResults(newPage);
+      const data = await fetchResultsWithFilters(filters, newPage);
       setResults(data);
       setPage(newPage);
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -140,32 +174,35 @@ function SearchPage() {
   const getPageTitle = () => {
     switch (filters.fundType) {
       case 'Pension':
+        return 'השוואת קרנות פנסיה';
       case 'Executive':
-        return 'השוואת קרנות פנסיה\nוביטוחי מנהלים';
+        return 'השוואת ביטוחי מנהלים';
       case 'Gemel':
-        return 'השוואת קופות גמל להשקעה';
+        return 'השוואת קופות גמל';
       case 'Hishtalmut':
         return 'השוואת קרנות השתלמות';
       case 'GemelChild':
-        return 'השוואת קופות גמל\nחסכון לילד';
+        return 'השוואת קופות חסכון לילד';
       default:
-        return 'השוואת מוצרים פיננסיים';
+        return 'השוואת מוצרי חיסכון';
     }
   };
 
   const getPageSubtitle = () => {
+    const base = 'חפש, סנן והשווה בין';
     switch (filters.fundType) {
       case 'Pension':
+        return `${base} קרנות פנסיה בישראל. נתונים רשמיים ממשרד האוצר.`;
       case 'Executive':
-        return 'חפש, סנן והשווה בין מאות קרנות פנסיה וביטוחי מנהלים בישראל. נתונים רשמיים ממשרד האוצר.';
+        return `${base} ביטוחי מנהלים בישראל. נתונים רשמיים ממשרד האוצר.`;
       case 'Gemel':
-        return 'חפש, סנן והשווה בין קופות גמל להשקעה בישראל. נתונים רשמיים ממשרד האוצר.';
+        return `${base} קופות גמל להשקעה בישראל. נתונים רשמיים ממשרד האוצר.`;
       case 'Hishtalmut':
-        return 'חפש, סנן והשווה בין קרנות השתלמות בישראל. נתונים רשמיים ממשרד האוצר.';
+        return `${base} קרנות השתלמות בישראל. נתונים רשמיים ממשרד האוצר.`;
       case 'GemelChild':
-        return 'חפש, סנן והשווה בין קופות גמל לחסכון לילד בישראל. נתונים רשמיים ממשרד האוצר.';
+        return `${base} קופות גמל לחסכון לילד בישראל. נתונים רשמיים ממשרד האוצר.`;
       default:
-        return 'חפש, סנן והשווה בין מוצרים פיננסיים בישראל. נתונים רשמיים ממשרד האוצר.';
+        return 'השווה בין מוצרי חיסכון פנסיוני בישראל. נתונים רשמיים ממשרד האוצר.';
     }
   };
 
@@ -197,13 +234,28 @@ function SearchPage() {
       {/* Hero Section */}
       <section className="hero-section">
         <div className="feature-badge">נתונים רשמיים ממשרד האוצר</div>
-        <h1 className="hero-title" style={{ whiteSpace: 'pre-line' }}>
+        <h1 className="hero-title">
           {getPageTitle()}
         </h1>
         <p className="hero-subtitle">
           {getPageSubtitle()}
         </p>
       </section>
+
+      {/* Product Selection Cards */}
+      <div className="product-selection-grid">
+        {PRODUCT_TYPES.map((product) => (
+          <div
+            key={product.id}
+            className={`product-card ${filters.fundType === product.id ? 'active' : ''}`}
+            onClick={() => handleProductSelect(product.id)}
+          >
+            <span className="product-icon">{product.icon}</span>
+            <h3>{product.label}</h3>
+            <p>{product.description}</p>
+          </div>
+        ))}
+      </div>
 
       {/* Search Card */}
       <div className="search-card">
@@ -222,24 +274,6 @@ function SearchPage() {
             </div>
 
             <div className="form-group">
-              <label htmlFor="fundType">סוג מוצר</label>
-              <select
-                id="fundType"
-                name="fundType"
-                value={filters.fundType}
-                onChange={handleFundTypeChange}
-              >
-                <option value="Pension">קרן פנסיה</option>
-                <option value="Executive">ביטוח מנהלים</option>
-                <option value="Gemel">קופת גמל להשקעה</option>
-                <option value="Hishtalmut">קרנות השתלמות</option>
-                <option value="GemelChild">קופת גמל - חסכון לילד</option>
-              </select>
-            </div>
-          </div>
-
-          <div className="form-row">
-            <div className="form-group">
               <label htmlFor="sortBy">מיין לפי</label>
               <select
                 id="sortBy"
@@ -250,11 +284,13 @@ function SearchPage() {
                 <option value="AVG_ANNUAL_YIELD_TRAILING_3YRS">ממוצעת שנתית 3 שנים</option>
                 <option value="AVG_ANNUAL_YIELD_TRAILING_5YRS">ממוצעת שנתית 5 שנים</option>
                 <option value="SHARPE_RATIO">מדד שארפ</option>
-                <option value="AVG_ANNUAL_MANAGEMENT_FEE">דמי ניהול</option>
-                <option value="AVG_DEPOSIT_FEE">דמי הפקדה</option>
+                <option value="AVG_ANNUAL_MANAGEMENT_FEE">דמי ניהול (נמוך לגבוה)</option>
+                <option value="AVG_DEPOSIT_FEE">דמי הפקדה (נמוך לגבוה)</option>
               </select>
             </div>
+          </div>
 
+          <div className="form-row">
             {filters.fundType === 'Pension' && (
               <div className="form-group">
                 <label htmlFor="classification">סוג קרן</label>
@@ -274,7 +310,7 @@ function SearchPage() {
 
           <div className="form-actions">
             <button type="submit" className="btn btn-cta" disabled={loading}>
-              {loading ? 'מחפש...' : 'חפש קרנות'}
+              {loading ? 'מחפש...' : 'חפש'}
             </button>
             <button type="button" className="btn btn-outline" onClick={clearFilters}>
               נקה סינון
