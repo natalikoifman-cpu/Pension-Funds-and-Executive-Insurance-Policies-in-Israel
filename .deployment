@@ -1,0 +1,3 @@
+[config]
+project = FunctionApp/FunctionApp.csproj
+SCM_DO_BUILD_DURING_DEPLOYMENT = true

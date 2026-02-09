@@ -54,6 +54,13 @@ logs/
 TestResults/
 *.trx
 
+# Azure publish profiles and deployment credentials
+*.PublishSettings
+*.publishsettings
+*.pubxml
+*.pubxml.user
+PublishProfiles/
+
 # Misc
 *.tmp
 *.temp

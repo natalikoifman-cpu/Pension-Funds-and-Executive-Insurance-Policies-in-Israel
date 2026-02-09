@@ -1,0 +1,102 @@
+name: Azure Web Deploy - Backend API
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'FunctionApp/**'
+      - '.github/workflows/azure-web-deploy.yml'
+  workflow_dispatch:
+    inputs:
+      deploy_slot:
+        description: 'Deployment slot (Production or staging)'
+        required: false
+        default: 'Production'
+        type: choice
+        options:
+          - Production
+          - staging
+
+env:
+  AZURE_FUNCTIONAPP_NAME: 'pension-funds-api-cyekachfb9efa6ej'
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: 'FunctionApp'
+  DOTNET_VERSION: '8.0.x'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/FunctionApp.csproj') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
+      - name: Restore dependencies
+        run: dotnet restore
+        working-directory: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+
+      - name: Build
+        run: dotnet build --configuration Release --no-restore
+        working-directory: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+
+      - name: Publish
+        run: dotnet publish --configuration Release --no-build --output ./publish
+        working-directory: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: function-app-package
+          path: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}/publish
+          retention-days: 3
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    environment:
+      name: ${{ github.event.inputs.deploy_slot || 'Production' }}
+      url: https://pension-funds-api-cyekachfb9efa6ej.canadacentral-01.azurewebsites.net
+
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: function-app-package
+          path: ./publish
+
+      - name: Deploy to Azure Functions via Web Deploy
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+          slot-name: ${{ github.event.inputs.deploy_slot || 'Production' }}
+          package: ./publish
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+
+      - name: Verify deployment health
+        run: |
+          echo "Waiting for deployment to stabilize..."
+          sleep 15
+          HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+            "https://pension-funds-api-cyekachfb9efa6ej.canadacentral-01.azurewebsites.net/api/Search?query=test" \
+            --max-time 30 || echo "000")
+          echo "Health check response: HTTP $HTTP_STATUS"
+          if [ "$HTTP_STATUS" = "000" ]; then
+            echo "::warning::Health check timed out - deployment may still be starting"
+          elif [ "$HTTP_STATUS" -ge 500 ]; then
+            echo "::error::Health check failed with HTTP $HTTP_STATUS"
+            exit 1
+          else
+            echo "Deployment health check passed"
+          fi

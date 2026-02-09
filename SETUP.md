@@ -84,21 +84,28 @@ az functionapp config appsettings set \
 
 2. Add these secrets:
 
-   **For Backend (Function App):**
-   - `AZURE_FUNCTIONAPP_PUBLISH_PROFILE`: Download from Azure Portal → Function App → Get publish profile
+   **For Backend (Function App) - Web Deploy:**
+   - `AZURE_FUNCTIONAPP_PUBLISH_PROFILE`: Download from Azure Portal → Function App → Overview → "Get publish profile"
+     - This downloads an XML file containing MSDeploy, FTP, and ZipDeploy credentials
+     - Paste the **entire XML content** as the secret value
+     - The `azure-web-deploy.yml` workflow uses this secret for deployment
+     - **Never commit the `.PublishSettings` file to the repository**
 
    **For Frontend (Static Web App):**
    - `AZURE_STATIC_WEB_APPS_API_TOKEN`: Get from Azure Portal → Static Web App → Manage deployment token
 
 3. Add repository variable:
    - Go to Settings → Secrets and variables → Actions → Variables
-   - Add `API_URL`: `https://pension-funds-api.azurewebsites.net/api`
+   - Add `API_URL`: `https://pension-funds-api-cyekachfb9efa6ej.canadacentral-01.azurewebsites.net/api`
 
 ### Step 4: Deploy
 
 Push to `main` branch - GitHub Actions will automatically deploy:
-- Backend changes → Azure Functions
+- Backend changes (under `FunctionApp/`) → Azure Functions via Web Deploy (`azure-web-deploy.yml`)
 - Frontend changes → Azure Static Web Apps
+
+The backend workflow only triggers on changes under the `FunctionApp/` directory.
+You can also trigger deployment manually from the GitHub Actions tab.
 
 ---
 

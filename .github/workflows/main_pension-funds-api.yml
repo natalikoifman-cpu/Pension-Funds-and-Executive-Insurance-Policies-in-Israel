@@ -1,28 +1,29 @@
-# Docs for the Azure Web Apps Deploy action: https://github.com/azure/functions-action
-# More GitHub Actions for Azure: https://github.com/Azure/actions
+# DEPRECATED: This workflow has been superseded by azure-web-deploy.yml
+# Kept for reference. The new workflow uses separated build/deploy jobs,
+# NuGet caching, path-based triggers, and deployment health checks.
+#
+# To migrate: ensure AZURE_FUNCTIONAPP_PUBLISH_PROFILE secret is set
+# (the same publish profile content works for both secrets).
 
-name: Build and deploy dotnet core app to Azure Function App - pension-funds-api
+name: "[Deprecated] Build and deploy - pension-funds-api"
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 env:
-  AZURE_FUNCTIONAPP_PACKAGE_PATH: 'FunctionApp' # path to the .NET project
-  DOTNET_VERSION: '8.0.x' # set this to the dotnet version to use
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: 'FunctionApp'
+  DOTNET_VERSION: '8.0.x'
 
 jobs:
   build-and-deploy:
     runs-on: windows-latest
-    
+
     steps:
       - name: 'Checkout GitHub Action'
         uses: actions/checkout@v4
 
       - name: Setup DotNet ${{ env.DOTNET_VERSION }} Environment
-        uses: actions/setup-dotnet@v1
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
@@ -32,7 +33,7 @@ jobs:
           pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
           dotnet build --configuration Release --output ./output
           popd
-      
+
       - name: 'Run Azure Functions Action'
         uses: Azure/functions-action@v1
         id: fa
