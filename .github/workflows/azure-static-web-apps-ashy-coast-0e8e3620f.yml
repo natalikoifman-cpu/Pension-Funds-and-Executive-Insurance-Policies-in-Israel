@@ -10,10 +10,10 @@ on:
       - main
 
 jobs:
-  build_and_deploy_job:
+  build_and_deploy_frontend:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
-    name: Build and Deploy Job
+    name: Build and Deploy Frontend
     permissions:
        id-token: write
        contents: read
@@ -47,6 +47,34 @@ jobs:
           ###### End of Repository/Build Configurations ######
         env:
           REACT_APP_API_URL: https://pension-funds-api-cyekachfb9efa6ej.canadacentral-01.azurewebsites.net/api
+
+  build_and_deploy_backend:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    name: Build and Deploy Backend
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore ./FunctionApp/FunctionApp.csproj
+
+      - name: Build
+        run: dotnet build ./FunctionApp/FunctionApp.csproj --configuration Release --no-restore
+
+      - name: Publish
+        run: dotnet publish ./FunctionApp/FunctionApp.csproj --configuration Release --output ./publish
+
+      - name: Deploy to Azure Functions
+        uses: Azure/functions-action@v1
+        with:
+          app-name: 'pension-funds-api-cyekachfb9efa6ej'
+          package: './publish'
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
 
   close_pull_request_job:
     if: github.event_name == 'pull_request' && github.event.action == 'closed'
