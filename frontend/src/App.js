@@ -12,7 +12,7 @@ function App() {
       <header className="navbar">
         <div className="navbar-content">
           <Link to="/" className="navbar-logo">
-            השוואת מוצרי חיסכון
+            קרנות פנסיה וביטוחי מנהלים
           </Link>
           <nav className="navbar-nav">
             <Link

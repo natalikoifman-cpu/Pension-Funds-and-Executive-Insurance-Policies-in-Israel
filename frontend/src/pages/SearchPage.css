@@ -48,9 +48,9 @@
 /* Product Selection Cards */
 .product-selection-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 16px;
-  max-width: 900px;
+  max-width: 500px;
   margin: 0 auto 32px;
   padding: 0 20px;
 }
@@ -305,23 +305,7 @@
   border-color: var(--accent-teal);
 }
 
-.fund-type-badge.gemel {
-  background: #7c3aed;
-  color: #ffffff;
-  border-color: #7c3aed;
-}
 
-.fund-type-badge.hishtalmut {
-  background: #d97706;
-  color: #ffffff;
-  border-color: #d97706;
-}
-
-.fund-type-badge.gemelchild {
-  background: #ec4899;
-  color: #ffffff;
-  border-color: #ec4899;
-}
 
 .fund-meta {
   display: flex;
@@ -674,7 +658,7 @@
   }
 
   .product-selection-grid {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 12px;
     padding: 0 16px;
   }
