@@ -1,13 +1,9 @@
-name: Deploy Frontend to Azure Static Web Apps
+# DEPRECATED: This workflow is superseded by azure-static-web-apps-ashy-coast-0e8e3620f.yml
+# Kept for reference only. Use workflow_dispatch to run manually if needed.
+
+name: "[Deprecated] Deploy Frontend to Azure Static Web Apps"
 
 on:
-  push:
-    branches:
-      - main
-  pull_request:
-    types: [opened, synchronize, reopened, closed]
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
