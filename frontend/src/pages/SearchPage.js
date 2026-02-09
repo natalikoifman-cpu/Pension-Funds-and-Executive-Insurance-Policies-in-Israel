@@ -7,9 +7,6 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 const PRODUCT_TYPES = [
   { id: 'Pension', icon: '📊', label: 'קרנות פנסיה', description: 'קרנות פנסיה מקיפות וכלליות' },
   { id: 'Executive', icon: '📋', label: 'ביטוחי מנהלים', description: 'פוליסות ביטוח מנהלים' },
-  { id: 'Gemel', icon: '💰', label: 'קופות גמל', description: 'קופות גמל להשקעה' },
-  { id: 'Hishtalmut', icon: '🎓', label: 'קרנות השתלמות', description: 'קרנות השתלמות לשכירים ועצמאים' },
-  { id: 'GemelChild', icon: '👶', label: 'חסכון לילד', description: 'קופות גמל לחסכון לילד' },
 ];
 
 // Fee sort fields should sort ascending (lower = better)
@@ -167,16 +164,9 @@ function SearchPage() {
   const getFundTypeHebrew = (type) => {
     const types = {
       Pension: 'קרן פנסיה',
-      Executive: 'ביטוח מנהלים',
-      Gemel: 'קופת גמל להשקעה',
-      Hishtalmut: 'קרנות השתלמות',
-      GemelChild: 'קופת גמל - חסכון לילד'
+      Executive: 'ביטוח מנהלים'
     };
     return types[type] || type;
-  };
-
-  const isGemelType = (fundType) => {
-    return ['gemel', 'hishtalmut', 'gemelchild'].includes(fundType?.toLowerCase());
   };
 
   const getPageTitle = () => {
@@ -185,14 +175,8 @@ function SearchPage() {
         return 'השוואת קרנות פנסיה';
       case 'Executive':
         return 'השוואת ביטוחי מנהלים';
-      case 'Gemel':
-        return 'השוואת קופות גמל';
-      case 'Hishtalmut':
-        return 'השוואת קרנות השתלמות';
-      case 'GemelChild':
-        return 'השוואת קופות חסכון לילד';
       default:
-        return 'השוואת מוצרי חיסכון';
+        return 'השוואת קרנות פנסיה וביטוחי מנהלים';
     }
   };
 
@@ -203,21 +187,9 @@ function SearchPage() {
         return `${base} קרנות פנסיה בישראל. נתונים רשמיים ממשרד האוצר.`;
       case 'Executive':
         return `${base} ביטוחי מנהלים בישראל. נתונים רשמיים ממשרד האוצר.`;
-      case 'Gemel':
-        return `${base} קופות גמל להשקעה בישראל. נתונים רשמיים ממשרד האוצר.`;
-      case 'Hishtalmut':
-        return `${base} קרנות השתלמות בישראל. נתונים רשמיים ממשרד האוצר.`;
-      case 'GemelChild':
-        return `${base} קופות גמל לחסכון לילד בישראל. נתונים רשמיים ממשרד האוצר.`;
       default:
-        return 'השווה בין מוצרי חיסכון פנסיוני בישראל. נתונים רשמיים ממשרד האוצר.';
+        return `${base} קרנות פנסיה וביטוחי מנהלים בישראל. נתונים רשמיים ממשרד האוצר.`;
     }
-  };
-
-  const formatAssets = (num) => {
-    if (num === null || num === undefined) return '-';
-    if (num >= 1000) return `${(num / 1000).toFixed(1)} מיליארד ₪`;
-    return `${Number(num).toFixed(0)} מיליון ₪`;
   };
 
   const formatNumber = (num, decimals = 2) => {
@@ -542,24 +514,6 @@ function SearchPage() {
                           <span className="stat-label">מדד שארפ</span>
                           <span className="stat-value">{formatNumber(fund.sharpeRatio)}</span>
                         </div>
-                        {isGemelType(fund.fundType) && (
-                          <>
-                            <div className="stat">
-                              <span className="stat-label">דמי ניהול</span>
-                              <span className="stat-value">{formatPercent(fund.managementFee)}</span>
-                            </div>
-                            <div className="stat">
-                              <span className="stat-label">דמי הפקדה</span>
-                              <span className="stat-value">{formatPercent(fund.depositFee)}</span>
-                            </div>
-                            {fund.totalAssets && (
-                              <div className="stat">
-                                <span className="stat-label">סך נכסים</span>
-                                <span className="stat-value">{formatAssets(fund.totalAssets)}</span>
-                              </div>
-                            )}
-                          </>
-                        )}
                       </div>
 
                       {isSelected && <div className="selected-badge">נבחר להשוואה</div>}
@@ -610,8 +564,8 @@ function SearchPage() {
 
         <div className="feature-card">
           <div className="feature-icon">🔍</div>
-          <h3>כל המוצרים הפיננסיים</h3>
-          <p>פנסיה, ביטוח מנהלים, קופות גמל, קרנות השתלמות וחסכון לילד</p>
+          <h3>קרנות פנסיה וביטוחי מנהלים</h3>
+          <p>השווה בין קרנות פנסיה מקיפות וכלליות ופוליסות ביטוח מנהלים</p>
         </div>
 
         <Link to="/chat" className="feature-card feature-card-link">
