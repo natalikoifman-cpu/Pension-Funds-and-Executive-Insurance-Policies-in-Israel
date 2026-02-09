@@ -268,13 +268,13 @@ public class UserSearchFunction
 
         return new PensionFund
         {
-            Id = record.FundId ?? "",
+            Id = record.FundId?.ToString() ?? "",
             Name = record.FundName ?? "",
             FundType = fundType,
             Classification = record.FundClassification,
             ManagingCompany = companyName,
-            ManagingCompanyId = record.ParentCompanyId,
-            ReportPeriod = record.ReportPeriod,
+            ManagingCompanyId = record.ParentCompanyId?.ToString(),
+            ReportPeriod = record.ReportPeriod?.ToString(),
             ManagementFee = record.AvgAnnualManagementFee ?? 0,
             DepositFee = record.AvgDepositFee ?? 0,
             MonthlyYield = record.MonthlyYield,
@@ -326,7 +326,7 @@ public class CkanApiResult
 public class CkanFundRecord
 {
     [JsonPropertyName("FUND_ID")]
-    public string? FundId { get; set; }
+    public long? FundId { get; set; }
 
     [JsonPropertyName("FUND_NAME")]
     public string? FundName { get; set; }
@@ -339,7 +339,7 @@ public class CkanFundRecord
     public string? ParentCompanyName { get; set; }
 
     [JsonPropertyName("PARENT_COMPANY_ID")]
-    public string? ParentCompanyId { get; set; }
+    public long? ParentCompanyId { get; set; }
 
     // Provident/Gemel dataset (different field names)
     [JsonPropertyName("MANAGING_CORPORATION")]
@@ -349,7 +349,7 @@ public class CkanFundRecord
     public string? ControllingCorporation { get; set; }
 
     [JsonPropertyName("REPORT_PERIOD")]
-    public string? ReportPeriod { get; set; }
+    public long? ReportPeriod { get; set; }
 
     [JsonPropertyName("TOTAL_ASSETS")]
     public decimal? TotalAssets { get; set; }

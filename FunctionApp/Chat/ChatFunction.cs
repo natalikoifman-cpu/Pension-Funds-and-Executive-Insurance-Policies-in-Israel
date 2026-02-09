@@ -339,13 +339,13 @@ public class ChatFunction
 
         return new PensionFund
         {
-            Id = record.FundId ?? "",
+            Id = record.FundId?.ToString() ?? "",
             Name = record.FundName ?? "",
             FundType = fundType,
             Classification = record.FundClassification,
             ManagingCompany = companyName,
-            ManagingCompanyId = record.ParentCompanyId,
-            ReportPeriod = record.ReportPeriod,
+            ManagingCompanyId = record.ParentCompanyId?.ToString(),
+            ReportPeriod = record.ReportPeriod?.ToString(),
             ManagementFee = record.AvgAnnualManagementFee ?? 0,
             DepositFee = record.AvgDepositFee ?? 0,
             MonthlyYield = record.MonthlyYield,
