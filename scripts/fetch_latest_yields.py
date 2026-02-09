@@ -31,14 +31,19 @@ import requests
 # CONFIGURATION
 # =============================================================================
 
-BASE_URL = "https://fundscomparisonapi.azurewebsites.net"
-TENANT_GUID = "898dd1cf-3a25-49fd-8fd4-6c287bb654d1"
-BEARER_TOKEN = "c01221ec-b769-47a7-883c-e6cfb01276ad"
+# data.gov.il CKAN API (Israel government open data portal)
+BASE_URL = "https://data.gov.il/api/3/action/datastore_search"
 
-# Endpoints
+# Resource IDs for each fund type (2024-present daily data)
+RESOURCE_IDS = {
+    "pension": "6d47d6b5-cb08-488b-b333-f1e717b1e1bd",
+    "insurance": "c6c62cc7-fe02-4b18-8f3e-813abfbb4647",
+}
+
+# Endpoints (CKAN uses resource_id, not path-based routing)
 ENDPOINTS = {
-    "pension": f"{BASE_URL}/api/fundsnet/{TENANT_GUID}/funds/pension",
-    "insurance": f"{BASE_URL}/api/fundsnet/{TENANT_GUID}/funds/insurance",
+    "pension": BASE_URL,
+    "insurance": BASE_URL,
 }
 
 # Field mappings: API field name -> normalized name
@@ -110,7 +115,6 @@ def make_request(
         requests.HTTPError: If request fails after all retries
     """
     headers = {
-        "Authorization": f"Bearer {BEARER_TOKEN}",
         "Accept": "application/json",
     }
 
@@ -176,8 +180,9 @@ def get_latest_report_period(endpoint_url: str, source_name: str) -> str:
     print(f"  Detecting latest REPORT_PERIOD for {source_name}...")
 
     params = {
+        "resource_id": RESOURCE_IDS[source_name],
         "fields": "REPORT_PERIOD",
-        "sort": "REPORT_PERIOD desc nulls last",
+        "sort": "REPORT_PERIOD desc",
         "limit": 1,
     }
 
@@ -251,6 +256,7 @@ def fetch_all_funds(
 
     while True:
         params = {
+            "resource_id": RESOURCE_IDS[source_name],
             "limit": limit,
             "offset": offset,
         }
@@ -316,6 +322,7 @@ def discover_available_fields(endpoint_url: str, source_name: str) -> List[str]:
     print(f"  Discovering available fields for {source_name}...")
 
     params = {
+        "resource_id": RESOURCE_IDS[source_name],
         "limit": 1,
     }
 
