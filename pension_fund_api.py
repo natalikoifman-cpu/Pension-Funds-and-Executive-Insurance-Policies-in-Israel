@@ -1,10 +1,11 @@
 """
 Israeli Pension Fund and Executive Insurance Data API Client
 
-A Python client for querying Israeli pension funds and executive insurance policies
-(ביטוחי מנהלים) data from the government data repository.
+A Python client for querying Israeli pension funds, executive insurance policies
+(ביטוחי מנהלים), and provident funds (קופות גמל) data from data.gov.il,
+the official Israeli government open data portal (CKAN API).
 
-API Base URL: https://fundscomparisonapi.azurewebsites.net
+API Base URL: https://data.gov.il/api/3/action/datastore_search
 """
 
 import requests
@@ -14,14 +15,21 @@ from dataclasses import dataclass
 from enum import Enum
 
 
-BASE_URL = "https://fundscomparisonapi.azurewebsites.net"
-ENDPOINT = "/api/Fundsnet/898dd1cf-3a25-49fd-8fd4-6c287bb654d1/funds"
+BASE_URL = "https://data.gov.il/api/3/action/datastore_search"
+
+# Resource IDs for each fund type (2024-present daily data)
+RESOURCE_IDS = {
+    "Pension": "6d47d6b5-cb08-488b-b333-f1e717b1e1bd",
+    "Insurance": "c6c62cc7-fe02-4b18-8f3e-813abfbb4647",
+    "Provident": "a30dcbea-a1d2-482c-ae29-8f781f5025fb",
+}
 
 
 class FundType(str, Enum):
     """Available fund types."""
     PENSION = "Pension"
     INSURANCE = "Insurance"
+    PROVIDENT = "Provident"
 
 
 class ExposureType(str, Enum):
@@ -38,14 +46,18 @@ class FundFields:
     Mandatory fields (always included):
     - FUND_ID: Unique fund identifier
     - FUND_NAME: Fund name
-    - PARENT_COMPANY_ID: Parent company identifier
-    - PARENT_COMPANY_NAME: Parent company name
     """
     # Mandatory fields
     FUND_ID = "FUND_ID"
     FUND_NAME = "FUND_NAME"
+
+    # Company fields (Pension/Insurance datasets)
     PARENT_COMPANY_ID = "PARENT_COMPANY_ID"
     PARENT_COMPANY_NAME = "PARENT_COMPANY_NAME"
+
+    # Company fields (Provident/Gemel dataset)
+    MANAGING_CORPORATION = "MANAGING_CORPORATION"
+    CONTROLLING_CORPORATION = "CONTROLLING_CORPORATION"
 
     # Classification and reporting
     FUND_CLASSIFICATION = "FUND_CLASSIFICATION"
@@ -75,28 +87,28 @@ class FundFields:
     FOREIGN_EXPOSURE = "FOREIGN_EXPOSURE"
     FOREIGN_CURRENCY_EXPOSURE = "FOREIGN_CURRENCY_EXPOSURE"
 
-    # Additional filter/sort fields
-    STOCK_MARKET_EXPOSURE_PERCENT = "STOCK_MARKET_EXPOSURE_PERCENT"
-    FOREIGN_EXPOSURE_PERCENT = "FOREIGN_EXPOSURE_PERCENT"
-    FOREIGN_CURRENCY_EXPOSURE_PERCENT = "FOREIGN_CURRENCY_EXPOSURE_PERCENT"
-    NET_MONTHLY_DEPOSITS_PERCENT = "NET_MONTHLY_DEPOSITS_PERCENT"
-    DEPOSITS_PERCENT = "DEPOSITS_PERCENT"
-    WITHDRAWLS_PERCENT = "WITHDRAWLS_PERCENT"
-    INTERNAL_TRANSFERS_PERCENT = "INTERNAL_TRANSFERS_PERCENT"
-
 
 class PensionFundAPI:
-    """Client for the Israeli Pension Fund Data API."""
+    """Client for the Israeli pension fund data via data.gov.il CKAN API."""
 
-    def __init__(self, base_url: str = BASE_URL, endpoint: str = ENDPOINT):
+    def __init__(self, base_url: str = BASE_URL, resource_ids: Dict[str, str] = None):
         """Initialize the API client.
 
         Args:
-            base_url: API base URL
-            endpoint: API endpoint path
+            base_url: CKAN datastore_search endpoint URL
+            resource_ids: Mapping of fund type to data.gov.il resource IDs
         """
         self.base_url = base_url
-        self.endpoint = endpoint
+        self.resource_ids = resource_ids or RESOURCE_IDS
+
+    def _get_resource_id(self, fund_type: str) -> str:
+        """Get the data.gov.il resource ID for a fund type."""
+        if fund_type in self.resource_ids:
+            return self.resource_ids[fund_type]
+        raise ValueError(
+            f"Unknown fund_type '{fund_type}'. "
+            f"Valid types: {list(self.resource_ids.keys())}"
+        )
 
     def fetch_funds(
         self,
@@ -107,39 +119,35 @@ class PensionFundAPI:
         limit: int = 10,
         offset: int = 0,
         distinct: bool = False,
-        complex_filters: Optional[Dict[str, Any]] = None,
-        months: Optional[int] = None
+        filters: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
-        Fetch pension/insurance fund data from the Israeli funds API.
+        Fetch pension/insurance/provident fund data from data.gov.il.
 
         Args:
-            fund_type: "Pension" or "Insurance"
+            fund_type: "Pension", "Insurance", or "Provident"
             fields: List of fields to return
-            q: Text search query (comma-separated for AND logic)
-            sort: Sort order, e.g., "YIELD_TRAILING_5_YRS desc nulls last"
-            limit: Number of records (recommended: 5-10, max 20)
+            q: Text search query
+            sort: Sort order, e.g., "YIELD_TRAILING_5_YRS desc"
+            limit: Number of records (default: 10)
             offset: Pagination offset
-            distinct: Return distinct records (must use with sort)
-            complex_filters: Dict with filter operators ($gt, $lt, $gte, $lte, $eq, $neq, $in, $and, $or)
-            months: Number of months to fetch (for historical data, use only for 1-2 funds)
+            distinct: Return distinct records
+            filters: Dict of exact-match filters, e.g. {"FUND_CLASSIFICATION": "קרנות השתלמות"}
 
         Returns:
-            API response as dictionary
-
-        Raises:
-            requests.HTTPError: If the API request fails
-            ValueError: If invalid parameters are provided
+            API response as dictionary with {success, result: {records, total}}
         """
-        if fund_type not in ["Pension", "Insurance"]:
-            raise ValueError(f"fund_type must be 'Pension' or 'Insurance', got '{fund_type}'")
+        resource_id = self._get_resource_id(fund_type)
 
         if distinct and not sort:
             raise ValueError("distinct=True requires a sort parameter")
 
-        url = f"{self.base_url}{self.endpoint}/{fund_type}"
-
-        params: Dict[str, Any] = {"limit": limit, "offset": offset}
+        params: Dict[str, Any] = {
+            "resource_id": resource_id,
+            "limit": limit,
+            "offset": offset,
+            "include_total": True,
+        }
 
         if fields:
             params["fields"] = ",".join(fields)
@@ -149,12 +157,10 @@ class PensionFundAPI:
             params["sort"] = sort
         if distinct:
             params["distinct"] = "true"
-        if complex_filters:
-            params["complexFilters"] = json.dumps(complex_filters)
-        if months:
-            params["months"] = months
+        if filters:
+            params["filters"] = json.dumps(filters)
 
-        response = requests.get(url, params=params)
+        response = requests.get(self.base_url, params=params)
         response.raise_for_status()
 
         return response.json()
@@ -168,7 +174,7 @@ class PensionFundAPI:
         """Get top performing funds by trailing yield.
 
         Args:
-            fund_type: "Pension" or "Insurance"
+            fund_type: "Pension", "Insurance", or "Provident"
             years: Trailing years for yield (3 or 5)
             limit: Number of records to return
 
@@ -177,16 +183,22 @@ class PensionFundAPI:
         """
         yield_field = f"YIELD_TRAILING_{years}_YRS"
 
+        # Use MANAGING_CORPORATION for Provident, PARENT_COMPANY_NAME for others
+        company_field = (
+            FundFields.MANAGING_CORPORATION if fund_type == "Provident"
+            else FundFields.PARENT_COMPANY_NAME
+        )
+
         return self.fetch_funds(
             fund_type=fund_type,
             fields=[
                 FundFields.FUND_ID,
                 FundFields.FUND_NAME,
-                FundFields.PARENT_COMPANY_NAME,
+                company_field,
                 yield_field,
                 FundFields.AVG_ANNUAL_MANAGEMENT_FEE
             ],
-            sort=f"{yield_field} desc nulls last",
+            sort=f"{yield_field} desc",
             limit=limit,
             distinct=True
         )
@@ -199,38 +211,43 @@ class PensionFundAPI:
         """Get funds with lowest management fees.
 
         Args:
-            fund_type: "Pension" or "Insurance"
+            fund_type: "Pension", "Insurance", or "Provident"
             limit: Number of records to return
 
         Returns:
             API response with low fee funds
         """
+        company_field = (
+            FundFields.MANAGING_CORPORATION if fund_type == "Provident"
+            else FundFields.PARENT_COMPANY_NAME
+        )
+
         return self.fetch_funds(
             fund_type=fund_type,
             fields=[
                 FundFields.FUND_ID,
                 FundFields.FUND_NAME,
-                FundFields.PARENT_COMPANY_NAME,
+                company_field,
                 FundFields.AVG_ANNUAL_MANAGEMENT_FEE,
                 FundFields.AVG_DEPOSIT_FEE,
                 FundFields.YIELD_TRAILING_5_YRS
             ],
-            sort=f"{FundFields.AVG_ANNUAL_MANAGEMENT_FEE} asc nulls last",
+            sort=f"{FundFields.AVG_ANNUAL_MANAGEMENT_FEE} asc",
             limit=limit,
             distinct=True
         )
 
     def search_funds_by_text(
         self,
-        search_terms: List[str],
+        search_text: str,
         fund_type: str = "Pension",
         limit: int = 10
     ) -> Dict[str, Any]:
-        """Search funds by text (AND logic).
+        """Search funds by text.
 
         Args:
-            search_terms: List of search terms (combined with AND logic)
-            fund_type: "Pension" or "Insurance"
+            search_text: Search text
+            fund_type: "Pension", "Insurance", or "Provident"
             limit: Number of records to return
 
         Returns:
@@ -238,74 +255,72 @@ class PensionFundAPI:
         """
         return self.fetch_funds(
             fund_type=fund_type,
-            q=",".join(search_terms),
+            q=search_text,
             limit=limit
         )
 
-    def search_funds_by_age(
+    def get_funds_by_classification(
         self,
-        age: int,
-        fund_type: str = "Pension",
+        classification: str,
+        fund_type: str = "Provident",
+        sort: str = "YEAR_TO_DATE_YIELD desc",
         limit: int = 10
     ) -> Dict[str, Any]:
-        """Search for age-specific funds.
+        """Get funds filtered by FUND_CLASSIFICATION.
 
         Args:
-            age: User age (will be rounded to nearest 10)
-            fund_type: "Pension" or "Insurance"
+            classification: Classification value, e.g. "קופת גמל להשקעה"
+            fund_type: "Pension", "Insurance", or "Provident"
+            sort: Sort order
             limit: Number of records to return
 
         Returns:
-            API response with age-appropriate funds
+            API response with matching funds
         """
-        # Round age to nearest 10
-        rounded_age = round(age / 10) * 10
-
         return self.fetch_funds(
             fund_type=fund_type,
-            q=f"{rounded_age},ומעלה",
-            fields=[
-                FundFields.FUND_ID,
-                FundFields.FUND_NAME,
-                FundFields.PARENT_COMPANY_NAME,
-                FundFields.YIELD_TRAILING_3_YRS,
-                FundFields.YIELD_TRAILING_5_YRS
-            ],
-            limit=limit
+            filters={"FUND_CLASSIFICATION": classification},
+            sort=sort,
+            limit=limit,
+            distinct=True
         )
 
     def get_high_exposure_funds(
         self,
         exposure_type: str = "STOCK_MARKET",
-        min_percent: float = 50,
         fund_type: str = "Pension",
         limit: int = 10
     ) -> Dict[str, Any]:
-        """Get funds with high market exposure.
+        """Get funds sorted by market exposure (descending).
+
+        Note: CKAN doesn't support range filters, so this sorts by exposure
+        rather than filtering by minimum percentage.
 
         Args:
             exposure_type: Type of exposure (STOCK_MARKET, FOREIGN, or FOREIGN_CURRENCY)
-            min_percent: Minimum exposure percentage
-            fund_type: "Pension" or "Insurance"
+            fund_type: "Pension", "Insurance", or "Provident"
             limit: Number of records to return
 
         Returns:
             API response with high exposure funds
         """
         exposure_field = f"{exposure_type}_EXPOSURE"
-        filter_field = f"{exposure_type}_EXPOSURE_PERCENT"
+
+        company_field = (
+            FundFields.MANAGING_CORPORATION if fund_type == "Provident"
+            else FundFields.PARENT_COMPANY_NAME
+        )
 
         return self.fetch_funds(
             fund_type=fund_type,
             fields=[
                 FundFields.FUND_ID,
                 FundFields.FUND_NAME,
-                FundFields.PARENT_COMPANY_NAME,
+                company_field,
                 exposure_field,
                 FundFields.YIELD_TRAILING_5_YRS
             ],
-            complex_filters={filter_field: {"$gte": min_percent}},
-            sort=f"{filter_field} desc",
+            sort=f"{exposure_field} desc",
             limit=limit
         )
 
@@ -319,7 +334,7 @@ class PensionFundAPI:
         """Get funds with risk metrics.
 
         Args:
-            fund_type: "Pension" or "Insurance"
+            fund_type: "Pension", "Insurance", or "Provident"
             sort_by: Field to sort by (SHARPE_RATIO, ALPHA, STANDARD_DEVIATION)
             descending: Sort in descending order
             limit: Number of records to return
@@ -334,69 +349,26 @@ class PensionFundAPI:
         """
         sort_order = "desc" if descending else "asc"
 
+        company_field = (
+            FundFields.MANAGING_CORPORATION if fund_type == "Provident"
+            else FundFields.PARENT_COMPANY_NAME
+        )
+
         return self.fetch_funds(
             fund_type=fund_type,
             fields=[
                 FundFields.FUND_ID,
                 FundFields.FUND_NAME,
-                FundFields.PARENT_COMPANY_NAME,
+                company_field,
                 FundFields.STANDARD_DEVIATION,
                 FundFields.ALPHA,
                 FundFields.SHARPE_RATIO,
                 FundFields.YIELD_TRAILING_5_YRS
             ],
-            sort=f"{sort_by} {sort_order} nulls last",
+            sort=f"{sort_by} {sort_order}",
             limit=limit,
             distinct=True
         )
-
-    def compare_funds(
-        self,
-        fund_ids: List[str],
-        fund_type: str = "Pension",
-        include_historical: bool = False,
-        months: int = 12
-    ) -> Dict[str, Any]:
-        """Compare specific funds by their IDs.
-
-        Args:
-            fund_ids: List of fund IDs to compare
-            fund_type: "Pension" or "Insurance"
-            include_historical: Include historical data
-            months: Number of months of historical data (only if include_historical=True)
-
-        Returns:
-            API response with fund comparison data
-        """
-        fields = [
-            FundFields.FUND_ID,
-            FundFields.FUND_NAME,
-            FundFields.PARENT_COMPANY_NAME,
-            FundFields.FUND_CLASSIFICATION,
-            FundFields.TOTAL_ASSETS,
-            FundFields.AVG_ANNUAL_MANAGEMENT_FEE,
-            FundFields.AVG_DEPOSIT_FEE,
-            FundFields.MONTHLY_YIELD,
-            FundFields.YEAR_TO_DATE_YIELD,
-            FundFields.YIELD_TRAILING_3_YRS,
-            FundFields.YIELD_TRAILING_5_YRS,
-            FundFields.STANDARD_DEVIATION,
-            FundFields.SHARPE_RATIO,
-            FundFields.STOCK_MARKET_EXPOSURE,
-            FundFields.FOREIGN_EXPOSURE
-        ]
-
-        kwargs: Dict[str, Any] = {
-            "fund_type": fund_type,
-            "fields": fields,
-            "complex_filters": {FundFields.FUND_ID: {"$in": fund_ids}},
-            "limit": len(fund_ids)
-        }
-
-        if include_historical:
-            kwargs["months"] = months
-
-        return self.fetch_funds(**kwargs)
 
     def get_funds_by_company(
         self,
@@ -408,7 +380,7 @@ class PensionFundAPI:
 
         Args:
             company_name: Company name to search for
-            fund_type: "Pension" or "Insurance"
+            fund_type: "Pension", "Insurance", or "Provident"
             limit: Number of records to return
 
         Returns:
@@ -417,20 +389,12 @@ class PensionFundAPI:
         return self.fetch_funds(
             fund_type=fund_type,
             q=company_name,
-            fields=[
-                FundFields.FUND_ID,
-                FundFields.FUND_NAME,
-                FundFields.PARENT_COMPANY_NAME,
-                FundFields.FUND_CLASSIFICATION,
-                FundFields.AVG_ANNUAL_MANAGEMENT_FEE,
-                FundFields.YIELD_TRAILING_5_YRS
-            ],
-            sort=f"{FundFields.YIELD_TRAILING_5_YRS} desc nulls last",
+            sort=f"{FundFields.YIELD_TRAILING_5_YRS} desc",
             limit=limit
         )
 
 
-# Module-level convenience functions for backward compatibility
+# Module-level convenience functions
 def fetch_funds(
     fund_type: str = "Pension",
     fields: Optional[List[str]] = None,
@@ -439,22 +403,20 @@ def fetch_funds(
     limit: int = 10,
     offset: int = 0,
     distinct: bool = False,
-    complex_filters: Optional[Dict[str, Any]] = None,
-    months: Optional[int] = None
+    filters: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """
-    Fetch pension/insurance fund data from the Israeli funds API.
+    Fetch pension/insurance/provident fund data from data.gov.il.
 
     Args:
-        fund_type: "Pension" or "Insurance"
+        fund_type: "Pension", "Insurance", or "Provident"
         fields: List of fields to return
-        q: Text search query (comma-separated for AND)
-        sort: Sort order, e.g., "YIELD_TRAILING_5_YRS desc nulls last"
-        limit: Number of records (recommended: 5-10)
+        q: Text search query
+        sort: Sort order, e.g., "YIELD_TRAILING_5_YRS desc"
+        limit: Number of records (default: 10)
         offset: Pagination offset
-        distinct: Return distinct records (must use with sort)
-        complex_filters: Dict with filter operators
-        months: Number of months to fetch (for historical data)
+        distinct: Return distinct records
+        filters: Dict of exact-match filters
 
     Returns:
         API response as dictionary
@@ -468,8 +430,7 @@ def fetch_funds(
         limit=limit,
         offset=offset,
         distinct=distinct,
-        complex_filters=complex_filters,
-        months=months
+        filters=filters,
     )
 
 
@@ -493,26 +454,24 @@ def get_low_fee_funds(
 
 
 def search_funds_by_text(
-    search_terms: List[str],
+    search_text: str,
     fund_type: str = "Pension",
     limit: int = 10
 ) -> Dict[str, Any]:
-    """Search funds by text (AND logic)."""
+    """Search funds by text."""
     api = PensionFundAPI()
-    return api.search_funds_by_text(search_terms=search_terms, fund_type=fund_type, limit=limit)
+    return api.search_funds_by_text(search_text=search_text, fund_type=fund_type, limit=limit)
 
 
 def get_high_exposure_funds(
     exposure_type: str = "STOCK_MARKET",
-    min_percent: float = 50,
     fund_type: str = "Pension",
     limit: int = 10
 ) -> Dict[str, Any]:
-    """Get funds with high market exposure."""
+    """Get funds sorted by market exposure."""
     api = PensionFundAPI()
     return api.get_high_exposure_funds(
         exposure_type=exposure_type,
-        min_percent=min_percent,
         fund_type=fund_type,
         limit=limit
     )
@@ -522,7 +481,7 @@ if __name__ == "__main__":
     # Example usage
     api = PensionFundAPI()
 
-    print("Top 5 Pension Funds by 5-Year Performance:")
+    print("Top 5 Pension Funds by 5-Year Performance (data.gov.il):")
     print("=" * 50)
 
     result = api.get_top_performing_funds(limit=5)

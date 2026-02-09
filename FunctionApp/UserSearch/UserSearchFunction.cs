@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FunctionApp.Models;
@@ -14,16 +13,16 @@ public class UserSearchFunction
     private readonly ILogger<UserSearchFunction> _logger;
     private readonly HttpClient _httpClient;
 
-    private const string ExternalApiBaseUrl = "https://fundscomparisonapi.azurewebsites.net";
-    private const string ExternalApiPath = "/api/Fundsnet/898dd1cf-3a25-49fd-8fd4-6c287bb654d1/funds";
+    // data.gov.il CKAN API (Israel government open data portal)
+    private const string DataGovApiUrl = "https://data.gov.il/api/3/action/datastore_search";
 
-    // All available fields from the API
-    private const string AllFields = "FUND_ID,FUND_NAME,FUND_CLASSIFICATION,PARENT_COMPANY_NAME,PARENT_COMPANY_ID," +
-        "REPORT_PERIOD,TOTAL_ASSETS,AVG_ANNUAL_MANAGEMENT_FEE,AVG_DEPOSIT_FEE," +
-        "MONTHLY_YIELD,YEAR_TO_DATE_YIELD,YIELD_TRAILING_3_YRS,YIELD_TRAILING_5_YRS," +
-        "AVG_ANNUAL_YIELD_TRAILING_3YRS,AVG_ANNUAL_YIELD_TRAILING_5YRS," +
-        "STANDARD_DEVIATION,ALPHA,SHARPE_RATIO," +
-        "LIQUID_ASSETS_PERCENT,STOCK_MARKET_EXPOSURE,FOREIGN_EXPOSURE,FOREIGN_CURRENCY_EXPOSURE";
+    // Resource IDs for each fund type (2024-present daily data)
+    private static readonly Dictionary<string, string> ResourceIds = new()
+    {
+        ["Pension"] = "6d47d6b5-cb08-488b-b333-f1e717b1e1bd",
+        ["Insurance"] = "c6c62cc7-fe02-4b18-8f3e-813abfbb4647",
+        ["Provident"] = "a30dcbea-a1d2-482c-ae29-8f781f5025fb"
+    };
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -45,7 +44,7 @@ public class UserSearchFunction
     public async Task<HttpResponseData> Run(
         [HttpTrigger(AuthorizationLevel.Anonymous, "get", "options")] HttpRequestData req)
     {
-        _logger.LogInformation("Search function processing request - calling external API");
+        _logger.LogInformation("Search function processing request via data.gov.il CKAN API");
 
         // Parse all query parameters
         var query = req.Query["query"];
@@ -62,12 +61,11 @@ public class UserSearchFunction
         var pageNumber = ParseInt(req.Query["pageNumber"]) ?? 1;
         var pageSize = ParseInt(req.Query["pageSize"]) ?? 10;
         var distinct = req.Query["distinct"] == "true";
-        var complexFilters = req.Query["complexFilters"];
 
-        var result = await SearchFundsFromExternalApiAsync(
+        var result = await SearchFundsAsync(
             query, fundType, minReturn, maxManagementFee,
             minReturn3Years, minReturn5Years, maxStockExposure, minStockExposure,
-            classification, sortBy, sortDesc, pageNumber, pageSize, distinct, complexFilters);
+            classification, sortBy, sortDesc, pageNumber, pageSize, distinct);
 
         var response = req.CreateResponse(HttpStatusCode.OK);
         response.Headers.Add("Content-Type", "application/json");
@@ -75,7 +73,7 @@ public class UserSearchFunction
         return response;
     }
 
-    private async Task<SearchResult> SearchFundsFromExternalApiAsync(
+    private async Task<SearchResult> SearchFundsAsync(
         string? query,
         string fundType,
         decimal? minReturn,
@@ -89,18 +87,12 @@ public class UserSearchFunction
         bool sortDesc,
         int pageNumber,
         int pageSize,
-        bool distinct,
-        string? complexFilters)
+        bool distinct)
     {
         try
         {
-            var apiKey = Environment.GetEnvironmentVariable("FUNDS_API_KEY") ?? "c01221ec-b769-47a7-883c-e6cfb01276ad";
-
-            // Map fundType to API format
-            // Pension funds → Pension endpoint
-            // Insurance → Insurance endpoint
-            // Gemel/Hishtalmut/GemelChild → Provident endpoint (with FUND_CLASSIFICATION filter)
-            var apiFundType = fundType?.ToLower() switch
+            // Map fundType to data.gov.il resource
+            var resourceKey = fundType?.ToLower() switch
             {
                 "pension" => "Pension",
                 "executive" or "insurance" => "Insurance",
@@ -108,82 +100,91 @@ public class UserSearchFunction
                 _ => "Pension"
             };
 
-            // Auto-inject FUND_CLASSIFICATION filter for new fund types
-            var fundClassificationFilter = fundType?.ToLower() switch
+            if (!ResourceIds.TryGetValue(resourceKey, out var resourceId))
             {
-                "gemel" => "{\"FUND_CLASSIFICATION\":{\"$eq\":\"קופת גמל להשקעה\"}}",
-                "hishtalmut" => "{\"FUND_CLASSIFICATION\":{\"$eq\":\"קרנות השתלמות\"}}",
-                "gemelchild" or "gemel-child" => "{\"FUND_CLASSIFICATION\":{\"$eq\":\"קופת גמל להשקעה - חסכון לילד\"}}",
+                resourceId = ResourceIds["Pension"];
+            }
+
+            // Build CKAN filters (exact match only)
+            var filters = new Dictionary<string, string>();
+
+            // Auto-inject FUND_CLASSIFICATION filter for specific fund types
+            var fundClassification = fundType?.ToLower() switch
+            {
+                "gemel" => "קופת גמל להשקעה",
+                "hishtalmut" => "קרנות השתלמות",
+                "gemelchild" or "gemel-child" => "קופת גמל להשקעה - חסכון לילד",
                 _ => null
             };
 
-            if (!string.IsNullOrEmpty(fundClassificationFilter))
-            {
-                complexFilters = string.IsNullOrEmpty(complexFilters)
-                    ? fundClassificationFilter
-                    : $"{{\"$and\":[{fundClassificationFilter},{complexFilters}]}}";
-            }
+            if (!string.IsNullOrEmpty(fundClassification))
+                filters["FUND_CLASSIFICATION"] = fundClassification;
 
-            var offset = (pageNumber - 1) * pageSize;
+            if (!string.IsNullOrEmpty(classification) && !filters.ContainsKey("FUND_CLASSIFICATION"))
+                filters["FUND_CLASSIFICATION"] = classification;
 
+            // Check if we need range filtering (CKAN doesn't support range queries)
+            bool hasRangeFilters = minReturn.HasValue || maxManagementFee.HasValue ||
+                minReturn3Years.HasValue || minReturn5Years.HasValue ||
+                maxStockExposure.HasValue || minStockExposure.HasValue;
+
+            // When range filters are present, fetch a larger set and filter in-memory
+            var fetchLimit = hasRangeFilters ? Math.Max(pageSize * 10, 200) : pageSize;
+            var fetchOffset = hasRangeFilters ? 0 : (pageNumber - 1) * pageSize;
+
+            // Build sort parameter
+            var sortField = MapSortField(sortBy);
+            var sortDirection = sortDesc ? "desc" : "asc";
+            var sort = $"{sortField} {sortDirection}";
+
+            // Build CKAN query URL
             var queryParams = new List<string>
             {
-                $"fields={AllFields}",
-                $"limit={pageSize}",
-                $"offset={offset}"
+                $"resource_id={resourceId}",
+                $"limit={fetchLimit}",
+                $"offset={fetchOffset}",
+                $"sort={Uri.EscapeDataString(sort)}",
+                "include_total=true"
             };
 
-            // Add search query if provided
             if (!string.IsNullOrEmpty(query))
             {
                 queryParams.Add($"q={Uri.EscapeDataString(query)}");
             }
 
-            // Build sort parameter
-            var sortField = MapSortField(sortBy);
-            var sortDirection = sortDesc ? "desc" : "asc";
-            queryParams.Add($"sort={Uri.EscapeDataString($"{sortField} {sortDirection} nulls last")}");
+            if (filters.Count > 0)
+            {
+                var filtersJson = JsonSerializer.Serialize(filters);
+                queryParams.Add($"filters={Uri.EscapeDataString(filtersJson)}");
+            }
 
-            // Add distinct if requested (requires sort)
             if (distinct)
             {
                 queryParams.Add("distinct=true");
             }
 
-            // Build complex filters
-            var filters = BuildComplexFilters(minReturn, maxManagementFee, minReturn3Years, minReturn5Years,
-                maxStockExposure, minStockExposure, classification, complexFilters);
+            var url = $"{DataGovApiUrl}?{string.Join("&", queryParams)}";
 
-            if (!string.IsNullOrEmpty(filters))
-            {
-                queryParams.Add($"complexFilters={Uri.EscapeDataString(filters)}");
-            }
+            _logger.LogInformation("Calling data.gov.il CKAN API: {Url}", url);
 
-            var url = $"{ExternalApiBaseUrl}{ExternalApiPath}/{apiFundType}?{string.Join("&", queryParams)}";
-
-            _logger.LogInformation("Calling external API: {Url}", url);
-
-            var request = new HttpRequestMessage(HttpMethod.Get, url);
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-
-            var apiResponse = await _httpClient.SendAsync(request);
+            var apiResponse = await _httpClient.GetAsync(url);
             var content = await apiResponse.Content.ReadAsStringAsync();
 
             if (!apiResponse.IsSuccessStatusCode)
             {
-                _logger.LogError("External API error: {StatusCode} - {Content}", apiResponse.StatusCode, content);
+                _logger.LogError("data.gov.il API error: {StatusCode} - {Content}", apiResponse.StatusCode, content);
                 return new SearchResult { Funds = new List<PensionFund>(), TotalCount = 0, PageNumber = pageNumber, PageSize = pageSize };
             }
 
-            var apiResult = JsonSerializer.Deserialize<ExternalApiResponse>(content, ApiJsonOptions);
+            var apiResult = JsonSerializer.Deserialize<CkanApiResponse>(content, ApiJsonOptions);
 
             if (apiResult?.Success != true || apiResult.Result?.Records == null)
             {
-                _logger.LogWarning("External API returned unsuccessful or no records");
+                _logger.LogWarning("data.gov.il API returned unsuccessful or no records");
                 return new SearchResult { Funds = new List<PensionFund>(), TotalCount = 0, PageNumber = pageNumber, PageSize = pageSize };
             }
 
-            // Preserve the original fund type for display purposes
+            // Map to fund records
             var mappedFundType = fundType?.ToLower() switch
             {
                 "executive" or "insurance" => "Executive",
@@ -192,8 +193,30 @@ public class UserSearchFunction
                 "gemelchild" or "gemel-child" => "GemelChild",
                 _ => "Pension"
             };
-            var funds = apiResult.Result.Records.Select(r => MapToFund(r, mappedFundType)).ToList();
+
+            var records = apiResult.Result.Records;
             var totalCount = apiResult.Result.Total;
+
+            // Apply range filters in-memory (CKAN only supports exact match)
+            if (hasRangeFilters)
+            {
+                records = records.Where(r =>
+                    (!minReturn.HasValue || r.YearToDateYield >= minReturn.Value) &&
+                    (!maxManagementFee.HasValue || r.AvgAnnualManagementFee <= maxManagementFee.Value) &&
+                    (!minReturn3Years.HasValue || r.YieldTrailing3Yrs >= minReturn3Years.Value) &&
+                    (!minReturn5Years.HasValue || r.YieldTrailing5Yrs >= minReturn5Years.Value) &&
+                    (!maxStockExposure.HasValue || r.StockMarketExposure <= maxStockExposure.Value) &&
+                    (!minStockExposure.HasValue || r.StockMarketExposure >= minStockExposure.Value)
+                ).ToList();
+
+                totalCount = records.Count;
+
+                // Apply pagination on filtered results
+                var offset = (pageNumber - 1) * pageSize;
+                records = records.Skip(offset).Take(pageSize).ToList();
+            }
+
+            var funds = records.Select(r => MapToFund(r, mappedFundType)).ToList();
 
             return new SearchResult
             {
@@ -205,7 +228,7 @@ public class UserSearchFunction
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error calling external API");
+            _logger.LogError(ex, "Error calling data.gov.il API");
             return new SearchResult { Funds = new List<PensionFund>(), TotalCount = 0, PageNumber = pageNumber, PageSize = pageSize };
         }
     }
@@ -230,73 +253,7 @@ public class UserSearchFunction
         };
     }
 
-    private static string? BuildComplexFilters(
-        decimal? minReturn,
-        decimal? maxManagementFee,
-        decimal? minReturn3Years,
-        decimal? minReturn5Years,
-        decimal? maxStockExposure,
-        decimal? minStockExposure,
-        string? classification,
-        string? existingFilters)
-    {
-        var conditions = new List<string>();
-
-        if (minReturn.HasValue)
-        {
-            conditions.Add($"{{\"YEAR_TO_DATE_YIELD\":{{\"$gte\":{minReturn.Value}}}}}");
-        }
-
-        if (maxManagementFee.HasValue)
-        {
-            conditions.Add($"{{\"AVG_ANNUAL_MANAGEMENT_FEE\":{{\"$lte\":{maxManagementFee.Value}}}}}");
-        }
-
-        if (minReturn3Years.HasValue)
-        {
-            conditions.Add($"{{\"YIELD_TRAILING_3_YRS\":{{\"$gte\":{minReturn3Years.Value}}}}}");
-        }
-
-        if (minReturn5Years.HasValue)
-        {
-            conditions.Add($"{{\"YIELD_TRAILING_5_YRS\":{{\"$gte\":{minReturn5Years.Value}}}}}");
-        }
-
-        if (maxStockExposure.HasValue)
-        {
-            conditions.Add($"{{\"STOCK_MARKET_EXPOSURE_PERCENT\":{{\"$lte\":{maxStockExposure.Value}}}}}");
-        }
-
-        if (minStockExposure.HasValue)
-        {
-            conditions.Add($"{{\"STOCK_MARKET_EXPOSURE_PERCENT\":{{\"$gte\":{minStockExposure.Value}}}}}");
-        }
-
-        if (!string.IsNullOrEmpty(classification))
-        {
-            conditions.Add($"{{\"FUND_CLASSIFICATION\":{{\"$eq\":\"{classification}\"}}}}");
-        }
-
-        // Add existing complex filters if provided
-        if (!string.IsNullOrEmpty(existingFilters))
-        {
-            conditions.Add(existingFilters);
-        }
-
-        if (conditions.Count == 0)
-        {
-            return null;
-        }
-
-        if (conditions.Count == 1)
-        {
-            return conditions[0];
-        }
-
-        return $"{{\"$and\":[{string.Join(",", conditions)}]}}";
-    }
-
-    private static PensionFund MapToFund(ExternalFundRecord record, string fundType)
+    private static PensionFund MapToFund(CkanFundRecord record, string fundType)
     {
         // Determine risk level based on stock market exposure
         var riskLevel = record.StockMarketExposure switch
@@ -306,13 +263,16 @@ public class UserSearchFunction
             _ => "Low"
         };
 
+        // Provident/Gemel datasets use MANAGING_CORPORATION instead of PARENT_COMPANY_NAME
+        var companyName = record.ParentCompanyName ?? record.ManagingCorporation ?? record.ControllingCorporation ?? "";
+
         return new PensionFund
         {
             Id = record.FundId ?? "",
             Name = record.FundName ?? "",
             FundType = fundType,
             Classification = record.FundClassification,
-            ManagingCompany = record.ParentCompanyName ?? "",
+            ManagingCompany = companyName,
             ManagingCompanyId = record.ParentCompanyId,
             ReportPeriod = record.ReportPeriod,
             ManagementFee = record.AvgAnnualManagementFee ?? 0,
@@ -349,21 +309,21 @@ public class UserSearchFunction
     }
 }
 
-// Models for external API response
-public class ExternalApiResponse
+// Models for data.gov.il CKAN API response
+public class CkanApiResponse
 {
     public bool Success { get; set; }
-    public ExternalApiResult? Result { get; set; }
+    public CkanApiResult? Result { get; set; }
 }
 
-public class ExternalApiResult
+public class CkanApiResult
 {
     public int Total { get; set; }
     public int Limit { get; set; }
-    public List<ExternalFundRecord>? Records { get; set; }
+    public List<CkanFundRecord>? Records { get; set; }
 }
 
-public class ExternalFundRecord
+public class CkanFundRecord
 {
     [JsonPropertyName("FUND_ID")]
     public string? FundId { get; set; }
@@ -374,11 +334,19 @@ public class ExternalFundRecord
     [JsonPropertyName("FUND_CLASSIFICATION")]
     public string? FundClassification { get; set; }
 
+    // Pension & Insurance datasets
     [JsonPropertyName("PARENT_COMPANY_NAME")]
     public string? ParentCompanyName { get; set; }
 
     [JsonPropertyName("PARENT_COMPANY_ID")]
     public string? ParentCompanyId { get; set; }
+
+    // Provident/Gemel dataset (different field names)
+    [JsonPropertyName("MANAGING_CORPORATION")]
+    public string? ManagingCorporation { get; set; }
+
+    [JsonPropertyName("CONTROLLING_CORPORATION")]
+    public string? ControllingCorporation { get; set; }
 
     [JsonPropertyName("REPORT_PERIOD")]
     public string? ReportPeriod { get; set; }

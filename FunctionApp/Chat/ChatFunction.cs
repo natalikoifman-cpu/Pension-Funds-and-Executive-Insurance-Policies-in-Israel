@@ -1,5 +1,4 @@
 using System.Net;
-using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FunctionApp.Models;
@@ -17,15 +16,16 @@ public class ChatFunction
     private readonly IAzureOpenAIService _openAIService;
     private readonly HttpClient _httpClient;
 
-    private const string ExternalApiBaseUrl = "https://fundscomparisonapi.azurewebsites.net";
-    private const string ExternalApiPath = "/api/Fundsnet/898dd1cf-3a25-49fd-8fd4-6c287bb654d1/funds";
+    // data.gov.il CKAN API (Israel government open data portal)
+    private const string DataGovApiUrl = "https://data.gov.il/api/3/action/datastore_search";
 
-    private const string AllFields = "FUND_ID,FUND_NAME,FUND_CLASSIFICATION,PARENT_COMPANY_NAME,PARENT_COMPANY_ID," +
-        "REPORT_PERIOD,TOTAL_ASSETS,AVG_ANNUAL_MANAGEMENT_FEE,AVG_DEPOSIT_FEE," +
-        "MONTHLY_YIELD,YEAR_TO_DATE_YIELD,YIELD_TRAILING_3_YRS,YIELD_TRAILING_5_YRS," +
-        "AVG_ANNUAL_YIELD_TRAILING_3YRS,AVG_ANNUAL_YIELD_TRAILING_5YRS," +
-        "STANDARD_DEVIATION,ALPHA,SHARPE_RATIO," +
-        "LIQUID_ASSETS_PERCENT,STOCK_MARKET_EXPOSURE,FOREIGN_EXPOSURE,FOREIGN_CURRENCY_EXPOSURE";
+    // Resource IDs for each fund type (2024-present daily data)
+    private static readonly Dictionary<string, string> ResourceIds = new()
+    {
+        ["Pension"] = "6d47d6b5-cb08-488b-b333-f1e717b1e1bd",
+        ["Insurance"] = "c6c62cc7-fe02-4b18-8f3e-813abfbb4647",
+        ["Provident"] = "a30dcbea-a1d2-482c-ae29-8f781f5025fb"
+    };
 
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -37,7 +37,7 @@ public class ChatFunction
         PropertyNameCaseInsensitive = true
     };
 
-    private const string SystemPrompt = @"אתה כלי להצגת נתונים על מוצרים פיננסיים בישראל. הנתונים מגיעים מאתר משרד האוצר.
+    private const string SystemPrompt = @"אתה כלי להצגת נתונים על מוצרים פיננסיים בישראל. הנתונים מגיעים מאתר data.gov.il (פורטל הנתונים הממשלתי הפתוח).
 
 מוצרים נתמכים:
 - קרנות פנסיה
@@ -54,7 +54,7 @@ public class ChatFunction
 5. אם המשתמש מבקש המלצה, הפנה אותו לבעל רישיון ייעוץ פנסיוני מטעם משרד האוצר
 
 אתה יכול:
-- להציג נתונים מאתר משרד האוצר
+- להציג נתונים מ-data.gov.il (רשות שוק ההון, ביטוח וחיסכון)
 - להשוות בין קרנות/קופות על בסיס נתונים פומביים
 - להציג תשואות, דמי ניהול וסטטיסטיקות
 - להשוות בין קופות גמל, קרנות השתלמות וקופות חסכון לילד
@@ -67,7 +67,7 @@ public class ChatFunction
 
 סיים כל תשובה עם ההודעה הבאה:
 ---
-אתר זה אינו מספק ייעוץ פנסיוני. האתר מציג נתונים מאתר משרד האוצר בלבד. לקבלת ייעוץ פנסיוני יש לפנות לבעל רישיון מטעם משרד האוצר.
+אתר זה אינו מספק ייעוץ פנסיוני. האתר מציג נתונים מ-data.gov.il בלבד. לקבלת ייעוץ פנסיוני יש לפנות לבעל רישיון מטעם משרד האוצר.
 
 נתונים זמינים:
 - תשואות (חודשית, שנתית, 3 שנים, 5 שנים)
@@ -218,7 +218,7 @@ public class ChatFunction
         return intent;
     }
 
-    private const string ResponseDisclaimer = "\n\n---\n⚠️ אתר זה אינו מספק ייעוץ פנסיוני. האתר מציג נתונים מאתר משרד האוצר בלבד. לקבלת ייעוץ פנסיוני יש לפנות לבעל רישיון מטעם משרד האוצר.";
+    private const string ResponseDisclaimer = "\n\n---\n⚠️ אתר זה אינו מספק ייעוץ פנסיוני. האתר מציג נתונים מ-data.gov.il בלבד. לקבלת ייעוץ פנסיוני יש לפנות לבעל רישיון מטעם משרד האוצר.";
 
     private string GenerateResponse(string message, ChatIntent intent)
     {
@@ -226,14 +226,14 @@ public class ChatFunction
         {
             "comparison" => "ניתן להשוות בין קרנות פנסיה או ביטוחי מנהלים. איזה קרנות תרצה להשוות? ניתן לציין שמות ספציפיים או לבקש השוואה לפי קריטריונים כמו תשואה, דמי ניהול או סטיית תקן.",
             "recommendation" => "אינני יכול להמליץ על קרן ספציפית. לקבלת ייעוץ פנסיוני מותאם אישית יש לפנות לבעל רישיון ייעוץ פנסיוני מטעם משרד האוצר. אני יכול להציג נתונים על קרנות שונות - האם תרצה לראות השוואה?",
-            "fee_inquiry" => "דמי הניהול משתנים בין הקרנות השונות. להלן נתוני דמי הניהול מאתר משרד האוצר. האם תרצה לראות רשימה של קרנות לפי דמי ניהול?",
-            "performance_inquiry" => "להלן נתוני התשואות מאתר משרד האוצר. ניתן להציג נתונים לפי תקופה: שנה אחרונה, 3 שנים או 5 שנים. איזו תקופה מעניינת אותך?",
-            "risk_inquiry" => "מדדי הסיכון כוללים סטיית תקן, מדד שארפ ואלפא. להלן הנתונים מאתר משרד האוצר. איזה מדד סיכון תרצה לראות?",
-            "pension_general" => "להלן נתונים על קרנות פנסיה מאתר משרד האוצר. איזה נתונים תרצה לראות?",
-            "executive_general" => "להלן נתונים על ביטוחי מנהלים מאתר משרד האוצר. איזה נתונים תרצה לראות?",
-            "gemel_general" => "להלן נתונים על קופות גמל להשקעה מאתר משרד האוצר. ניתן להשוות תשואות, דמי ניהול ודמי הפקדה. איזה נתונים תרצה לראות?",
-            "hishtalmut_general" => "להלן נתונים על קרנות השתלמות מאתר משרד האוצר. ניתן להשוות תשואות, דמי ניהול וביצועים. איזה נתונים תרצה לראות?",
-            "gemel_child_general" => "להלן נתונים על קופות גמל לחסכון לילד מאתר משרד האוצר. איזה נתונים תרצה לראות?",
+            "fee_inquiry" => "דמי הניהול משתנים בין הקרנות השונות. להלן נתוני דמי הניהול מ-data.gov.il. האם תרצה לראות רשימה של קרנות לפי דמי ניהול?",
+            "performance_inquiry" => "להלן נתוני התשואות מ-data.gov.il. ניתן להציג נתונים לפי תקופה: שנה אחרונה, 3 שנים או 5 שנים. איזו תקופה מעניינת אותך?",
+            "risk_inquiry" => "מדדי הסיכון כוללים סטיית תקן, מדד שארפ ואלפא. להלן הנתונים מ-data.gov.il. איזה מדד סיכון תרצה לראות?",
+            "pension_general" => "להלן נתונים על קרנות פנסיה מ-data.gov.il. איזה נתונים תרצה לראות?",
+            "executive_general" => "להלן נתונים על ביטוחי מנהלים מ-data.gov.il. איזה נתונים תרצה לראות?",
+            "gemel_general" => "להלן נתונים על קופות גמל להשקעה מ-data.gov.il. ניתן להשוות תשואות, דמי ניהול ודמי הפקדה. איזה נתונים תרצה לראות?",
+            "hishtalmut_general" => "להלן נתונים על קרנות השתלמות מ-data.gov.il. ניתן להשוות תשואות, דמי ניהול וביצועים. איזה נתונים תרצה לראות?",
+            "gemel_child_general" => "להלן נתונים על קופות גמל לחסכון לילד מ-data.gov.il. איזה נתונים תרצה לראות?",
             _ => "שלום! אני כאן לעזור לך להציג ולהשוות נתונים על קרנות פנסיה, ביטוחי מנהלים, קופות גמל וקרנות השתלמות. אתה יכול לשאול אותי על השוואות ותשואות."
         };
         return response + ResponseDisclaimer;
@@ -242,32 +242,30 @@ public class ChatFunction
     private async Task<List<PensionFund>> GetRelevantFundsAsync(ChatIntent intent)
     {
         var fundType = intent.Parameters.ContainsKey("fundType") ? intent.Parameters["fundType"] : "Pension";
-        // Add "nulls last" to avoid funds with null values appearing first
         var sortField = intent.Type switch
         {
-            "fee_inquiry" => "AVG_ANNUAL_MANAGEMENT_FEE nulls last",
-            "performance_inquiry" => "YEAR_TO_DATE_YIELD desc nulls last",
-            "recommendation" => "YEAR_TO_DATE_YIELD desc nulls last",
-            "risk_inquiry" => "SHARPE_RATIO desc nulls last",
-            _ => "YEAR_TO_DATE_YIELD desc nulls last"
+            "fee_inquiry" => "AVG_ANNUAL_MANAGEMENT_FEE asc",
+            "performance_inquiry" => "YEAR_TO_DATE_YIELD desc",
+            "recommendation" => "YEAR_TO_DATE_YIELD desc",
+            "risk_inquiry" => "SHARPE_RATIO desc",
+            _ => "YEAR_TO_DATE_YIELD desc"
         };
 
         try
         {
-            var funds = await FetchFundsFromApiAsync(fundType, sortField, 5);
+            var funds = await FetchFundsFromDataGovAsync(fundType, sortField, 5);
             return funds;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error fetching funds from external API");
+            _logger.LogError(ex, "Error fetching funds from data.gov.il");
             return new List<PensionFund>();
         }
     }
 
-    private async Task<List<PensionFund>> FetchFundsFromApiAsync(string fundType, string sort, int limit)
+    private async Task<List<PensionFund>> FetchFundsFromDataGovAsync(string fundType, string sort, int limit)
     {
-        var apiKey = Environment.GetEnvironmentVariable("FUNDS_API_KEY") ?? "c01221ec-b769-47a7-883c-e6cfb01276ad";
-        var apiFundType = fundType.ToLower() switch
+        var resourceKey = fundType.ToLower() switch
         {
             "pension" => "Pension",
             "executive" or "insurance" => "Insurance",
@@ -275,36 +273,43 @@ public class ChatFunction
             _ => "Pension"
         };
 
-        // Build FUND_CLASSIFICATION filter for new fund types
-        var classificationFilter = fundType.ToLower() switch
+        if (!ResourceIds.TryGetValue(resourceKey, out var resourceId))
         {
-            "gemel" => "{\"FUND_CLASSIFICATION\":{\"$eq\":\"קופת גמל להשקעה\"}}",
-            "hishtalmut" => "{\"FUND_CLASSIFICATION\":{\"$eq\":\"קרנות השתלמות\"}}",
-            "gemelchild" => "{\"FUND_CLASSIFICATION\":{\"$eq\":\"קופת גמל להשקעה - חסכון לילד\"}}",
+            resourceId = ResourceIds["Pension"];
+        }
+
+        // Build CKAN filters for fund classification
+        var filters = new Dictionary<string, string>();
+        var classification = fundType.ToLower() switch
+        {
+            "gemel" => "קופת גמל להשקעה",
+            "hishtalmut" => "קרנות השתלמות",
+            "gemelchild" => "קופת גמל להשקעה - חסכון לילד",
             _ => null
         };
 
-        var queryParams = $"fields={AllFields}&limit={limit}&sort={Uri.EscapeDataString(sort)}";
-        if (!string.IsNullOrEmpty(classificationFilter))
+        if (!string.IsNullOrEmpty(classification))
+            filters["FUND_CLASSIFICATION"] = classification;
+
+        var queryParams = $"resource_id={resourceId}&limit={limit}&sort={Uri.EscapeDataString(sort)}&include_total=true";
+        if (filters.Count > 0)
         {
-            queryParams += $"&complexFilters={Uri.EscapeDataString(classificationFilter)}";
+            var filtersJson = JsonSerializer.Serialize(filters);
+            queryParams += $"&filters={Uri.EscapeDataString(filtersJson)}";
         }
 
-        var url = $"{ExternalApiBaseUrl}{ExternalApiPath}/{apiFundType}?{queryParams}";
+        var url = $"{DataGovApiUrl}?{queryParams}";
 
-        var request = new HttpRequestMessage(HttpMethod.Get, url);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", apiKey);
-
-        var response = await _httpClient.SendAsync(request);
+        var response = await _httpClient.GetAsync(url);
         var content = await response.Content.ReadAsStringAsync();
 
         if (!response.IsSuccessStatusCode)
         {
-            _logger.LogError("External API error: {StatusCode} - {Content}", response.StatusCode, content);
+            _logger.LogError("data.gov.il API error: {StatusCode} - {Content}", response.StatusCode, content);
             return new List<PensionFund>();
         }
 
-        var apiResult = JsonSerializer.Deserialize<ExternalApiResponse>(content, ApiJsonOptions);
+        var apiResult = JsonSerializer.Deserialize<CkanApiResponse>(content, ApiJsonOptions);
         if (apiResult?.Success != true || apiResult.Result?.Records == null)
         {
             return new List<PensionFund>();
@@ -321,7 +326,7 @@ public class ChatFunction
         return apiResult.Result.Records.Select(r => MapToFund(r, mappedFundType)).ToList();
     }
 
-    private static PensionFund MapToFund(ExternalFundRecord record, string fundType)
+    private static PensionFund MapToFund(CkanFundRecord record, string fundType)
     {
         var riskLevel = record.StockMarketExposure switch
         {
@@ -330,13 +335,15 @@ public class ChatFunction
             _ => "Low"
         };
 
+        var companyName = record.ParentCompanyName ?? record.ManagingCorporation ?? record.ControllingCorporation ?? "";
+
         return new PensionFund
         {
             Id = record.FundId ?? "",
             Name = record.FundName ?? "",
             FundType = fundType,
             Classification = record.FundClassification,
-            ManagingCompany = record.ParentCompanyName ?? "",
+            ManagingCompany = companyName,
             ManagingCompanyId = record.ParentCompanyId,
             ReportPeriod = record.ReportPeriod,
             ManagementFee = record.AvgAnnualManagementFee ?? 0,
