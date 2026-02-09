@@ -101,10 +101,9 @@ az functionapp config appsettings set \
 ### Step 4: Deploy
 
 Push to `main` branch - GitHub Actions will automatically deploy:
-- Backend changes (under `FunctionApp/`) → Azure Functions via Web Deploy (`azure-web-deploy.yml`)
-- Frontend changes → Azure Static Web Apps
+- Backend → Azure Functions via Web Deploy (`azure-web-deploy.yml`)
+- Frontend → Azure Static Web Apps
 
-The backend workflow only triggers on changes under the `FunctionApp/` directory.
 You can also trigger deployment manually from the GitHub Actions tab.
 
 ---
