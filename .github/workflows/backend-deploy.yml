@@ -1,9 +1,10 @@
-name: Deploy Azure Functions
+# DEPRECATED: This workflow has been superseded by azure-web-deploy.yml
+# Kept for reference. The new workflow uses separated build/deploy jobs,
+# NuGet caching, path-based triggers, and deployment health checks.
+
+name: "[Deprecated] Deploy Azure Functions"
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 env:
